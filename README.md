@@ -13,7 +13,7 @@ npm run dev
 
 Open http://localhost:3000.
 
-Requires Node.js 22.5 or newer. The app uses Node's built-in SQLite, which still needs the experimental flag. The npm scripts set that flag.
+Requires Node.js 22.5 or newer. `npm run dev` works in PowerShell, Command Prompt, and on macOS or Linux. The app uses Node's built-in SQLite, and the npm scripts turn that on for you.
 
 ```bash
 npm test

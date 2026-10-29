@@ -6,10 +6,10 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "dev": "NODE_OPTIONS='--experimental-sqlite' next dev",
-    "build": "NODE_OPTIONS='--experimental-sqlite' next build",
-    "start": "NODE_OPTIONS='--experimental-sqlite' next start",
-    "test": "NODE_OPTIONS='--experimental-sqlite' node --import tsx --test tests/*.test.ts"
+    "dev": "node scripts/with-sqlite.mjs next dev",
+    "build": "node scripts/with-sqlite.mjs next build",
+    "start": "node scripts/with-sqlite.mjs next start",
+    "test": "node scripts/with-sqlite.mjs --import tsx --test tests/company.test.ts tests/format.test.ts tests/reviews.test.ts tests/validation.test.ts"
   },
   "dependencies": {
     "next": "^16.4.3",
