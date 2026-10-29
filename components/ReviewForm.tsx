@@ -12,9 +12,11 @@ const initialState: SubmitState = {};
 export function ReviewForm({
   managers,
   initialManagerId,
+  divisionName,
 }: {
   managers: ManagerOption[];
   initialManagerId?: string;
+  divisionName: string;
 }) {
   const knownManager = managers.some((manager) => manager.id === initialManagerId);
   const [state, formAction, pending] = useActionState(submitReview, initialState);
@@ -48,7 +50,8 @@ export function ReviewForm({
     <form action={formAction} className="rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04] md:p-8">
       <h1 className="text-2xl font-bold tracking-tight">Write a review</h1>
       <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-        Your name is not asked for and it is not stored. Write about the manager, not the organisation.
+        This stays in {divisionName}. Your name is not asked for, and the review stores the score, the words, and the
+        day. It does not store who wrote it or which computer it came from.
       </p>
 
       {state.error ? (

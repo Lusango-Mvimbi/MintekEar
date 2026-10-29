@@ -4,6 +4,8 @@ import { Avatar } from "@/components/Avatar";
 import { CompanyMark } from "@/components/CompanyMark";
 import { ScoreBlock } from "@/components/ScoreBlock";
 import { TagPills } from "@/components/TagPills";
+import { getViewer } from "@/lib/directory";
+import { divisionName } from "@/lib/divisions";
 import { timeAgo } from "@/lib/format";
 import { getManager } from "@/lib/queries";
 
@@ -11,7 +13,8 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const manager = getManager(id);
+  const viewer = await getViewer();
+  const manager = viewer.divisionId ? getManager(id, { divisionId: viewer.divisionId, hr: viewer.hr }) : null;
   return { title: manager?.name ?? "Manager" };
 }
 
@@ -48,7 +51,9 @@ export default async function ManagerPage({
 }) {
   const { id } = await params;
   const { posted } = await searchParams;
-  const manager = getManager(id);
+  const viewer = await getViewer();
+  if (!viewer.divisionId) notFound();
+  const manager = getManager(id, { divisionId: viewer.divisionId, hr: viewer.hr });
   if (!manager) notFound();
 
   return (
@@ -70,6 +75,8 @@ export default async function ManagerPage({
             <h1 className="text-2xl font-bold tracking-tight">{manager.name}</h1>
             <p className="mt-1 text-muted">
               {manager.title}
+              <span className="mx-2 text-line">·</span>
+              {divisionName(manager.divisionId)}
               {manager.sample ? (
                 <span className="ml-2 rounded-full bg-paper px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase">
                   Example
@@ -97,12 +104,14 @@ export default async function ManagerPage({
 
         <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <Distribution ratings={manager.reviews.map((review) => review.rating)} />
-          <Link
-            href={`/review?manager=${manager.id}`}
-            className="inline-flex justify-center rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
-          >
-            Write a review
-          </Link>
+          {manager.divisionId === viewer.divisionId ? (
+            <Link
+              href={`/review?manager=${manager.id}`}
+              className="inline-flex justify-center rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+            >
+              Write a review
+            </Link>
+          ) : null}
         </div>
       </section>
 

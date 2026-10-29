@@ -1,6 +1,13 @@
 import { getDb } from "./db";
-import { sortTagIds } from "./tags";
+import { DIVISIONS } from "./divisions";
+import { reviewDate } from "./format";
+import { sortTagIds, tagById } from "./tags";
 import type { ValidReview } from "./validation";
+
+export type ReviewAccess = {
+  divisionId: string;
+  hr: boolean;
+};
 
 export type ManagerOption = {
   id: string;
@@ -20,6 +27,7 @@ export type ManagerSummary = {
   id: string;
   name: string;
   title: string;
+  divisionId: string;
   sample: boolean;
   average: number;
   reviewCount: number;
@@ -30,11 +38,28 @@ export type ManagerDetail = {
   id: string;
   name: string;
   title: string;
+  divisionId: string;
   sample: boolean;
   average: number;
   reviewCount: number;
   tagCounts: { id: string; count: number }[];
   reviews: ReviewItem[];
+};
+
+export type DivisionReport = {
+  divisionId: string;
+  name: string;
+  managerCount: number;
+  reviewCount: number;
+  average: number | null;
+  tagCounts: { id: string; count: number }[];
+  managers: ManagerSummary[];
+};
+
+export type OrganisationReport = {
+  reviewCount: number;
+  average: number | null;
+  divisions: DivisionReport[];
 };
 
 export type InsertResult = { ok: true; managerId: string } | { ok: false; error: string };
@@ -72,10 +97,17 @@ function tagsFor(reviewIds: string[]): Map<string, string[]> {
   return grouped;
 }
 
-export function listManagerOptions(): ManagerOption[] {
+export function reviewTableColumns(): string[] {
+  return getDb()
+    .prepare("PRAGMA table_info(reviews)")
+    .all()
+    .map((row) => text(row.name));
+}
+
+export function listManagerOptions(divisionId: string): ManagerOption[] {
   const rows = getDb()
-    .prepare("SELECT id, name, title FROM managers ORDER BY name COLLATE NOCASE")
-    .all();
+    .prepare("SELECT id, name, title FROM managers WHERE division = ? ORDER BY name COLLATE NOCASE")
+    .all(divisionId);
   return rows.map((row) => ({
     id: text(row.id),
     name: text(row.name),
@@ -83,7 +115,7 @@ export function listManagerOptions(): ManagerOption[] {
   }));
 }
 
-export function listFeed(query = ""): ManagerSummary[] {
+function listManagers(divisionId: string | null, query: string): ManagerSummary[] {
   const pattern = likePattern(query);
   const needle = query.trim().toLowerCase();
   const rows = getDb()
@@ -93,6 +125,7 @@ export function listFeed(query = ""): ManagerSummary[] {
            m.id,
            m.name,
            m.title,
+           m.division,
            m.sample,
            (SELECT AVG(rating) FROM reviews r WHERE r.manager_id = m.id) AS average,
            (SELECT COUNT(*) FROM reviews r WHERE r.manager_id = m.id) AS review_count,
@@ -104,6 +137,7 @@ export function listFeed(query = ""): ManagerSummary[] {
              LIMIT 1
            ) AS latest_id
          FROM managers m
+         WHERE (? IS NULL OR m.division = ?)
        )
        WHERE review_count > 0
          AND (
@@ -113,7 +147,7 @@ export function listFeed(query = ""): ManagerSummary[] {
          )
        ORDER BY latest_at DESC, name COLLATE NOCASE`,
     )
-    .all(needle, pattern, pattern);
+    .all(divisionId, divisionId, needle, pattern, pattern);
 
   const latestIds = rows.map((row) => text(row.latest_id));
   const reviewRows = latestIds.length
@@ -144,6 +178,7 @@ export function listFeed(query = ""): ManagerSummary[] {
       id: text(row.id),
       name: text(row.name),
       title: text(row.title),
+      divisionId: text(row.division),
       sample: num(row.sample) === 1,
       average: num(row.average),
       reviewCount: num(row.review_count),
@@ -152,13 +187,22 @@ export function listFeed(query = ""): ManagerSummary[] {
   });
 }
 
-export function getManager(id: string): ManagerDetail | null {
+export function listFeed(divisionId: string, query = ""): ManagerSummary[] {
+  return listManagers(divisionId, query);
+}
+
+export function listOrganisation(): ManagerSummary[] {
+  return listManagers(null, "");
+}
+
+export function getManager(id: string, access: ReviewAccess): ManagerDetail | null {
   const row = getDb()
     .prepare(
       `SELECT
          m.id,
          m.name,
          m.title,
+         m.division,
          m.sample,
          (SELECT AVG(rating) FROM reviews r WHERE r.manager_id = m.id) AS average,
          (SELECT COUNT(*) FROM reviews r WHERE r.manager_id = m.id) AS review_count
@@ -167,6 +211,8 @@ export function getManager(id: string): ManagerDetail | null {
     )
     .get(id);
   if (!row) return null;
+  const divisionId = text(row.division);
+  if (!access.hr && divisionId !== access.divisionId) return null;
 
   const reviewRows = getDb()
     .prepare(
@@ -198,6 +244,7 @@ export function getManager(id: string): ManagerDetail | null {
     id: text(row.id),
     name: text(row.name),
     title: text(row.title),
+    divisionId,
     sample: num(row.sample) === 1,
     average: reviews.length ? num(row.average) : 0,
     reviewCount: num(row.review_count),
@@ -209,18 +256,78 @@ export function getManager(id: string): ManagerDetail | null {
   };
 }
 
-export function insertReview(review: ValidReview): InsertResult {
+export function organisationReport(): OrganisationReport {
+  const managers = listOrganisation();
+  const grouped = new Map<string, ManagerSummary[]>();
+  for (const manager of managers) {
+    const list = grouped.get(manager.divisionId) ?? [];
+    list.push(manager);
+    grouped.set(manager.divisionId, list);
+  }
+
+  const tagRows = getDb()
+    .prepare(
+      `SELECT m.division AS division, t.tag AS tag, COUNT(*) AS count
+       FROM review_tags t
+       JOIN reviews r ON r.id = t.review_id
+       JOIN managers m ON m.id = r.manager_id
+       GROUP BY m.division, t.tag`,
+    )
+    .all();
+  const tagsByDivision = new Map<string, { id: string; count: number }[]>();
+  for (const row of tagRows) {
+    const division = text(row.division);
+    const list = tagsByDivision.get(division) ?? [];
+    list.push({ id: text(row.tag), count: num(row.count) });
+    tagsByDivision.set(division, list);
+  }
+
+  const divisions = DIVISIONS.map((division) => {
+    const group = grouped.get(division.id) ?? [];
+    const reviewCount = group.reduce((sum, manager) => sum + manager.reviewCount, 0);
+    const weighted = group.reduce((sum, manager) => sum + manager.average * manager.reviewCount, 0);
+    const tagCounts = (tagsByDivision.get(division.id) ?? [])
+      .filter((tag) => tagById(tag.id))
+      .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
+    return {
+      divisionId: division.id,
+      name: division.name,
+      managerCount: group.length,
+      reviewCount,
+      average: reviewCount ? weighted / reviewCount : null,
+      tagCounts,
+      managers: group,
+    };
+  });
+
+  const reviewCount = divisions.reduce((sum, division) => sum + division.reviewCount, 0);
+  const weighted = divisions.reduce(
+    (sum, division) => sum + (division.average ?? 0) * division.reviewCount,
+    0,
+  );
+  return {
+    reviewCount,
+    average: reviewCount ? weighted / reviewCount : null,
+    divisions,
+  };
+}
+
+export function insertReview(review: ValidReview, divisionId: string): InsertResult {
   const db = getDb();
-  const now = new Date().toISOString();
+  const today = reviewDate();
   let managerId = "";
   let createManager: { name: string; title: string } | null = null;
 
   if (review.mode === "existing") {
-    const existing = db.prepare("SELECT id FROM managers WHERE id = ?").get(review.managerId);
+    const existing = db
+      .prepare("SELECT id FROM managers WHERE id = ? AND division = ?")
+      .get(review.managerId, divisionId);
     if (!existing) return { ok: false, error: "Choose a manager from the list, or add them." };
     managerId = review.managerId;
   } else {
-    const existing = db.prepare("SELECT id FROM managers WHERE lower(name) = lower(?)").get(review.managerName);
+    const existing = db
+      .prepare("SELECT id FROM managers WHERE lower(name) = lower(?) AND division = ?")
+      .get(review.managerName, divisionId);
     if (existing) {
       managerId = text(existing.id);
     } else {
@@ -239,12 +346,12 @@ export function insertReview(review: ValidReview): InsertResult {
   try {
     if (createManager) {
       db.prepare(
-        "INSERT INTO managers (id, name, title, sample, created_at) VALUES (?, ?, ?, 0, ?)",
-      ).run(managerId, createManager.name, createManager.title, now);
+        "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+      ).run(managerId, createManager.name, createManager.title, divisionId, today);
     }
     db.prepare(
       "INSERT INTO reviews (id, manager_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?)",
-    ).run(reviewId, managerId, review.rating, review.body, now);
+    ).run(reviewId, managerId, review.rating, review.body, today);
     const insertTag = db.prepare("INSERT INTO review_tags (review_id, tag) VALUES (?, ?)");
     for (const tag of review.tags) insertTag.run(reviewId, tag);
     db.exec("COMMIT");

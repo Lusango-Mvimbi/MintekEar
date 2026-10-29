@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { reviewDate } from "./format";
 
 const day = 24 * 60 * 60 * 1000;
 
@@ -15,14 +16,15 @@ type SeedManager = {
   id: string;
   name: string;
   title: string;
+  division: string;
 };
 
 const managers: SeedManager[] = [
-  { id: "mgr-thabo", name: "Thabo Molefe", title: "Engineering Manager" },
-  { id: "mgr-lerato", name: "Lerato Nkosi", title: "Research Manager" },
-  { id: "mgr-ayesha", name: "Ayesha Patel", title: "Laboratory Manager" },
-  { id: "mgr-johan", name: "Johan Botha", title: "Operations Manager" },
-  { id: "mgr-sipho", name: "Sipho Dlamini", title: "Project Manager" },
+  { id: "mgr-thabo", name: "Thabo Molefe", title: "Engineering Manager", division: "pyrometallurgy" },
+  { id: "mgr-lerato", name: "Lerato Nkosi", title: "Research Manager", division: "hydrometallurgy" },
+  { id: "mgr-ayesha", name: "Ayesha Patel", title: "Laboratory Manager", division: "analytical-chemistry" },
+  { id: "mgr-johan", name: "Johan Botha", title: "Operations Manager", division: "mineral-processing" },
+  { id: "mgr-sipho", name: "Sipho Dlamini", title: "Project Manager", division: "measurement-and-control" },
 ];
 
 const reviews: SeedReview[] = [
@@ -46,7 +48,7 @@ const reviews: SeedReview[] = [
     id: "rev-lerato-latest",
     managerId: "mgr-lerato",
     rating: 5,
-    ageMs: day + 5 * 60 * 60 * 1000,
+    ageMs: day * 2,
     tags: [],
     body: "Solid manager. The group gets cover when a result is late for a real reason, and the weekly conversation is about the work rather than how it looks.",
   },
@@ -54,7 +56,7 @@ const reviews: SeedReview[] = [
     id: "rev-ayesha-latest",
     managerId: "mgr-ayesha",
     rating: 5,
-    ageMs: day * 2,
+    ageMs: day * 3,
     tags: ["supportive", "clear-communicator", "gives-feedback"],
     body: "Ayesha is a really good manager to work for. She puts her team first, says what she means, and the feedback shows up while you can still use it.",
   },
@@ -70,7 +72,7 @@ const reviews: SeedReview[] = [
     id: "rev-johan-latest",
     managerId: "mgr-johan",
     rating: 1,
-    ageMs: day * 3,
+    ageMs: day * 4,
     tags: ["low-ego", "poor-communication", "plays-favourites"],
     body: "He does not grandstand, but the priority is whatever is most visible that week. Reasons for a decision are thin, and the same people are shielded when a date slips.",
   },
@@ -113,8 +115,9 @@ export function seedIfEmpty(db: DatabaseSync) {
   if ((row?.count ?? 0) > 0) return;
 
   const now = Date.now();
+  const today = reviewDate(now);
   const insertManager = db.prepare(
-    "INSERT INTO managers (id, name, title, sample, created_at) VALUES (?, ?, ?, 1, ?)",
+    "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 1, ?)",
   );
   const insertReview = db.prepare(
     "INSERT INTO reviews (id, manager_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -124,7 +127,7 @@ export function seedIfEmpty(db: DatabaseSync) {
   db.exec("BEGIN IMMEDIATE");
   try {
     for (const manager of managers) {
-      insertManager.run(manager.id, manager.name, manager.title, new Date(now).toISOString());
+      insertManager.run(manager.id, manager.name, manager.title, manager.division, today);
     }
     for (const review of reviews) {
       insertReview.run(
@@ -132,7 +135,7 @@ export function seedIfEmpty(db: DatabaseSync) {
         review.managerId,
         review.rating,
         review.body,
-        new Date(now - review.ageMs).toISOString(),
+        reviewDate(now - review.ageMs),
       );
       for (const tag of review.tags) insertTag.run(review.id, tag);
     }

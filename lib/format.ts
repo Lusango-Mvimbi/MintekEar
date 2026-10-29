@@ -30,20 +30,35 @@ export function initials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-export function timeAgo(iso: string, now = Date.now()): string {
-  const delta = Math.max(0, now - new Date(iso).getTime());
-  const minutes = Math.floor(delta / 60_000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return minutes === 1 ? "1m ago" : `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return hours === 1 ? "1h ago" : `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return days === 1 ? "1d ago" : `${days}d ago`;
-  const weeks = Math.floor(days / 7);
+const zone = "Africa/Johannesburg";
+
+/** Calendar day only. A review never stores a clock time. */
+export function reviewDate(now = Date.now()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: zone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+function dayNumber(day: string): number {
+  const [year, month, date] = day.split("-").map(Number);
+  return Date.UTC(year, month - 1, date);
+}
+
+export function timeAgo(value: string, now = Date.now()): string {
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : reviewDate(new Date(value).getTime());
+  const diff = Math.round((dayNumber(reviewDate(now)) - dayNumber(day)) / 86_400_000);
+  if (diff <= 0) return "Today";
+  if (diff === 1) return "1d ago";
+  if (diff < 7) return `${diff}d ago`;
+  const weeks = Math.floor(diff / 7);
   if (weeks < 5) return weeks === 1 ? "1w ago" : `${weeks}w ago`;
   return new Intl.DateTimeFormat("en-ZA", {
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(new Date(iso));
+    timeZone: "UTC",
+  }).format(new Date(dayNumber(day)));
 }

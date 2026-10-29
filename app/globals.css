@@ -27,6 +27,18 @@ body {
   font-family: var(--font-sans);
 }
 
+@media print {
+  body {
+    background: white;
+  }
+
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

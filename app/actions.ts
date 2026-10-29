@@ -1,7 +1,10 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getViewer } from "@/lib/directory";
+import { divisionById } from "@/lib/divisions";
 import { insertReview } from "@/lib/queries";
 import { validateReview, type ReviewDraft } from "@/lib/validation";
 
@@ -22,6 +25,11 @@ function draftFromForm(formData: FormData): ReviewDraft {
 }
 
 export async function submitReview(_prev: SubmitState, formData: FormData): Promise<SubmitState> {
+  const viewer = await getViewer();
+  if (!viewer.divisionId) {
+    return { error: "Reviews open once the employee directory is connected." };
+  }
+
   const result = validateReview(draftFromForm(formData));
   if (!result.ok) {
     if (result.spam) redirect("/");
@@ -30,15 +38,29 @@ export async function submitReview(_prev: SubmitState, formData: FormData): Prom
 
   let saved: { managerId: string };
   try {
-    const inserted = insertReview(result.value);
+    const inserted = insertReview(result.value, viewer.divisionId);
     if (!inserted.ok) return { error: inserted.error };
     saved = { managerId: inserted.managerId };
-  } catch (error) {
-    console.error(error);
+  } catch {
     return { error: "The review could not be saved. Try again." };
   }
 
   revalidatePath("/");
+  revalidatePath("/report");
   revalidatePath(`/managers/${saved.managerId}`);
   redirect(`/managers/${saved.managerId}?posted=1`);
+}
+
+export async function previewDivision(formData: FormData) {
+  if (process.env.MINTEKEAR_DIRECTORY === "employee") redirect("/");
+  const id = String(formData.get("division") ?? "");
+  if (!divisionById(id)) redirect("/");
+  const jar = await cookies();
+  jar.set("mintekear_division", id, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  redirect("/");
 }

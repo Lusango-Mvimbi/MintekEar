@@ -22,6 +22,18 @@ npm run build
 
 Reviews are stored in `data/mintekear.db`. That file is created on first launch and is not committed. Delete it and restart to return to the example managers. Deleting it also removes reviews people have posted.
 
+## Divisions and Human Resources
+
+Each person sees reviews for their own division. The division names match the Mintek directory: Pyrometallurgy, Hydrometallurgy, Analytical Chemistry, Human Resources, and the others shown there. The lists under those names are document libraries, not extra divisions.
+
+Until the employee database is connected, the header has a division preview so the filter can be tried. Choose Human Resources to open Analysis. Set `MINTEKEAR_DIRECTORY=employee` when the directory is ready. The connection point is `lookupEmployee` in [`lib/directory.ts`](lib/directory.ts). It should return only the person's division. It must not return a name, staff number, email, or device, and that result must not be saved with a review.
+
+The analysis report is counts, averages, and traits by division. It is available to Human Resources.
+
+## What a review stores
+
+A review row has the manager, the score, the words, the traits, and the calendar day in Johannesburg. It does not store a clock time, a person, a staff number, an IP address, or a computer. Do not add request logging that keeps those details for the review route.
+
 ## Set up for another company
 
 One deployment is one organisation. Edit [`company.json`](company.json):

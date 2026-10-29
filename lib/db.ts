@@ -17,6 +17,7 @@ function migrate(db: DatabaseSync) {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       title TEXT NOT NULL,
+      division TEXT NOT NULL DEFAULT '',
       sample INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
@@ -33,6 +34,26 @@ function migrate(db: DatabaseSync) {
       PRIMARY KEY (review_id, tag)
     );
     CREATE INDEX IF NOT EXISTS reviews_manager_created ON reviews (manager_id, created_at DESC);
+  `);
+
+  const managerColumns = db.prepare("PRAGMA table_info(managers)").all() as { name: string }[];
+  if (!managerColumns.some((column) => column.name === "division")) {
+    db.exec("ALTER TABLE managers ADD COLUMN division TEXT NOT NULL DEFAULT ''");
+  }
+
+  const placements: Record<string, string> = {
+    "mgr-thabo": "pyrometallurgy",
+    "mgr-lerato": "hydrometallurgy",
+    "mgr-ayesha": "analytical-chemistry",
+    "mgr-johan": "mineral-processing",
+    "mgr-sipho": "measurement-and-control",
+  };
+  const place = db.prepare("UPDATE managers SET division = ? WHERE id = ? AND division = ''");
+  for (const [id, division] of Object.entries(placements)) place.run(division, id);
+
+  db.exec(`
+    UPDATE reviews SET created_at = substr(created_at, 1, 10) WHERE length(created_at) > 10;
+    UPDATE managers SET created_at = substr(created_at, 1, 10) WHERE length(created_at) > 10;
   `);
 }
 

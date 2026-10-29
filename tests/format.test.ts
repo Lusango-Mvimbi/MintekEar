@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatScore, initials, timeAgo, verdictLabel } from "../lib/format";
+import { formatScore, initials, reviewDate, timeAgo, verdictLabel } from "../lib/format";
 
 test("scores use one decimal and a verdict", () => {
   assert.equal(formatScore(1), "1.0");
@@ -18,11 +18,11 @@ test("initials use the first and last name", () => {
   assert.equal(initials("Ayesha"), "AY");
 });
 
-test("relative time matches the feed", () => {
+test("dates stay in whole days", () => {
   const now = Date.parse("2026-10-29T10:00:00.000Z");
-  assert.equal(timeAgo(new Date(now - 30_000).toISOString(), now), "Just now");
-  assert.equal(timeAgo(new Date(now - 60_000).toISOString(), now), "1m ago");
-  assert.equal(timeAgo("2026-10-29T09:00:00.000Z", now), "1h ago");
-  assert.equal(timeAgo("2026-10-28T10:00:00.000Z", now), "1d ago");
-  assert.equal(timeAgo("2026-10-26T10:00:00.000Z", now), "3d ago");
+  assert.equal(reviewDate(now), "2026-10-29");
+  assert.equal(timeAgo("2026-10-29", now), "Today");
+  assert.equal(timeAgo("2026-10-29T10:00:00.000Z", now), "Today");
+  assert.equal(timeAgo("2026-10-28", now), "1d ago");
+  assert.equal(timeAgo("2026-10-26", now), "3d ago");
 });
