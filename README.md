@@ -47,4 +47,4 @@ One deployment is one organisation. Edit [`company.json`](company.json):
 
 Put the logo file in `public/brand/` and restart. Score colours stay red, amber, and green so a low score reads the same way for every customer.
 
-The first screen is a feed of managers, newest review first. A card opens that person's reviews. “Write a review” posts anonymously against someone already listed, or adds a manager by name and role.
+The first screen is a feed of managers in your division, newest review first. A card opens that person's reviews. “Write a review” searches the directory for a manager in that same division and posts anonymously. You cannot add a manager by typing a name that is not already listed.

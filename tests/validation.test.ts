@@ -4,10 +4,7 @@ import { validateReview, type ReviewDraft } from "../lib/validation";
 
 function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
   return {
-    mode: "new",
-    managerId: "",
-    managerName: "Naledi Khumalo",
-    managerTitle: "Engineering Manager",
+    managerId: "mgr-thabo",
     rating: 4,
     body: "She shares credit and the plan for the week is clear.",
     tags: ["fair", "clear-communicator"],
@@ -16,13 +13,19 @@ function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
   };
 }
 
-test("accepts an anonymous review of a new manager", () => {
+test("accepts an anonymous review of a listed manager", () => {
   const result = validateReview(draft());
   assert.equal(result.ok, true);
   if (result.ok) {
-    assert.equal(result.value.mode, "new");
+    assert.equal(result.value.managerId, "mgr-thabo");
     assert.deepEqual(result.value.tags, ["fair", "clear-communicator"]);
   }
+});
+
+test("rejects a review that does not name a listed manager", () => {
+  const result = validateReview(draft({ managerId: "  " }));
+  assert.equal(result.ok, false);
+  if (!result.ok && !result.spam) assert.match(result.error, /division/);
 });
 
 test("rejects a short review, a bad score, and an unknown trait", () => {

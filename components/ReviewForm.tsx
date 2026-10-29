@@ -20,12 +20,8 @@ export function ReviewForm({
 }) {
   const knownManager = managers.some((manager) => manager.id === initialManagerId);
   const [state, formAction, pending] = useActionState(submitReview, initialState);
-  const [mode, setMode] = useState<"existing" | "new">(
-    managers.length === 0 ? "new" : "existing",
-  );
+  const [query, setQuery] = useState("");
   const [managerId, setManagerId] = useState(knownManager ? initialManagerId ?? "" : "");
-  const [managerName, setManagerName] = useState("");
-  const [managerTitle, setManagerTitle] = useState("");
   const [rating, setRating] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [body, setBody] = useState("");
@@ -46,12 +42,21 @@ export function ReviewForm({
     });
   }
 
+  const selected = managers.find((manager) => manager.id === managerId);
+  const needle = query.trim().toLowerCase();
+  const matches =
+    needle.length < 2
+      ? []
+      : managers
+          .filter((manager) => manager.name.toLowerCase().includes(needle) && manager.id !== managerId)
+          .slice(0, 8);
+
   return (
     <form action={formAction} className="rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04] md:p-8">
       <h1 className="text-2xl font-bold tracking-tight">Write a review</h1>
       <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-        This stays in {divisionName}. Your name is not asked for, and the review stores the score, the words, and the
-        day. It does not store who wrote it or which computer it came from.
+        Search for a manager in {divisionName}. Only people already listed in this division appear. The review stores
+        the score, the words, and the day. It does not store who wrote it or which computer it came from.
       </p>
 
       {state.error ? (
@@ -62,77 +67,54 @@ export function ReviewForm({
 
       <fieldset className="mt-8">
         <legend className="text-sm font-bold">Who is this about?</legend>
-        <div className="mt-3 grid grid-cols-2 gap-2 rounded-full bg-paper p-1">
-          <button
-            type="button"
-            aria-pressed={mode === "existing"}
-            disabled={managers.length === 0}
-            onClick={() => setMode("existing")}
-            className={`rounded-full px-3 py-2 text-sm font-semibold ${
-              mode === "existing" ? "bg-accent text-white" : "text-ink"
-            } disabled:cursor-not-allowed disabled:opacity-40`}
-          >
-            Listed manager
-          </button>
-          <button
-            type="button"
-            aria-pressed={mode === "new"}
-            onClick={() => setMode("new")}
-            className={`rounded-full px-3 py-2 text-sm font-semibold ${
-              mode === "new" ? "bg-accent text-white" : "text-ink"
-            }`}
-          >
-            Add a manager
-          </button>
-        </div>
-        <input type="hidden" name="mode" value={mode} />
+        <p className="mt-1 text-sm text-muted">Type at least two letters of their name. You cannot add someone who is not already listed.</p>
+        <label className="mt-4 block text-sm font-medium">
+          Search by name
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            autoComplete="off"
+            placeholder="Name and surname"
+            className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
+          />
+        </label>
+        <input type="hidden" name="managerId" value={managerId} />
 
-        {mode === "existing" ? (
-          <label className="mt-4 block text-sm font-medium">
-            Manager
-            <select
-              name="managerId"
-              value={managerId}
-              onChange={(event) => setManagerId(event.target.value)}
-              required
-              className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-accent"
-            >
-              <option value="">Choose a manager</option>
-              {managers.map((manager) => (
-                <option key={manager.id} value={manager.id}>
-                  {manager.name} · {manager.title}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-medium">
-              Name
-              <input
-                name="managerName"
-                value={managerName}
-                onChange={(event) => setManagerName(event.target.value)}
-                required
-                autoComplete="off"
-                placeholder="Name and surname"
-                className="mt-2 w-full rounded-xl border border-line px-3 py-2.5 text-sm outline-none focus:border-accent"
-              />
-            </label>
-            <label className="block text-sm font-medium">
-              Role
-              <input
-                name="managerTitle"
-                value={managerTitle}
-                onChange={(event) => setManagerTitle(event.target.value)}
-                required
-                autoComplete="off"
-                placeholder="Engineering Manager"
-                className="mt-2 w-full rounded-xl border border-line px-3 py-2.5 text-sm outline-none focus:border-accent"
-              />
-            </label>
-          </div>
-        )}
+        {selected ? (
+          <p className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-paper px-4 py-3 text-sm">
+            <span>
+              <span className="font-semibold">{selected.name}</span>
+              <span className="text-muted"> · {selected.title}</span>
+            </span>
+            <button type="button" onClick={() => setManagerId("")} className="font-semibold text-brand">
+              Change
+            </button>
+          </p>
+        ) : null}
+
+        {needle.length >= 2 && matches.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">No manager in your division matches that name.</p>
+        ) : null}
+
+        {matches.length > 0 ? (
+          <ul className="mt-3 overflow-hidden rounded-2xl ring-1 ring-line">
+            {matches.map((manager) => (
+              <li key={manager.id} className="border-t border-line first:border-t-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManagerId(manager.id);
+                    setQuery("");
+                  }}
+                  className="flex w-full items-baseline justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-paper"
+                >
+                  <span className="font-semibold">{manager.name}</span>
+                  <span className="text-muted">{manager.title}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </fieldset>
 
       <fieldset className="mt-8">

@@ -315,43 +315,22 @@ export function organisationReport(): OrganisationReport {
 export function insertReview(review: ValidReview, divisionId: string): InsertResult {
   const db = getDb();
   const today = reviewDate();
-  let managerId = "";
-  let createManager: { name: string; title: string } | null = null;
-
-  if (review.mode === "existing") {
-    const existing = db
-      .prepare("SELECT id FROM managers WHERE id = ? AND division = ?")
-      .get(review.managerId, divisionId);
-    if (!existing) return { ok: false, error: "Choose a manager from the list, or add them." };
-    managerId = review.managerId;
-  } else {
-    const existing = db
-      .prepare("SELECT id FROM managers WHERE lower(name) = lower(?) AND division = ?")
-      .get(review.managerName, divisionId);
-    if (existing) {
-      managerId = text(existing.id);
-    } else {
-      managerId = crypto.randomUUID();
-      createManager = { name: review.managerName, title: review.managerTitle };
-    }
-  }
+  const existing = db
+    .prepare("SELECT id FROM managers WHERE id = ? AND division = ?")
+    .get(review.managerId, divisionId);
+  if (!existing) return { ok: false, error: "Search for a manager in your division." };
 
   const duplicate = db
     .prepare("SELECT id FROM reviews WHERE manager_id = ? AND body = ?")
-    .get(managerId, review.body);
+    .get(review.managerId, review.body);
   if (duplicate) return { ok: false, error: "That same review is already on this manager." };
 
   const reviewId = crypto.randomUUID();
   db.exec("BEGIN IMMEDIATE");
   try {
-    if (createManager) {
-      db.prepare(
-        "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 0, ?)",
-      ).run(managerId, createManager.name, createManager.title, divisionId, today);
-    }
     db.prepare(
       "INSERT INTO reviews (id, manager_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?)",
-    ).run(reviewId, managerId, review.rating, review.body, today);
+    ).run(reviewId, review.managerId, review.rating, review.body, today);
     const insertTag = db.prepare("INSERT INTO review_tags (review_id, tag) VALUES (?, ?)");
     for (const tag of review.tags) insertTag.run(reviewId, tag);
     db.exec("COMMIT");
@@ -360,5 +339,5 @@ export function insertReview(review: ValidReview, divisionId: string): InsertRes
     throw error;
   }
 
-  return { ok: true, managerId };
+  return { ok: true, managerId: review.managerId };
 }

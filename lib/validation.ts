@@ -3,41 +3,24 @@ import { TAGS } from "./tags";
 const knownTags = new Set(TAGS.map((tag) => tag.id));
 
 export type ReviewDraft = {
-  mode: string;
   managerId: string;
-  managerName: string;
-  managerTitle: string;
   rating: number;
   body: string;
   tags: string[];
   honeypot: string;
 };
 
-export type ValidReview =
-  | {
-      mode: "existing";
-      managerId: string;
-      rating: number;
-      body: string;
-      tags: string[];
-    }
-  | {
-      mode: "new";
-      managerName: string;
-      managerTitle: string;
-      rating: number;
-      body: string;
-      tags: string[];
-    };
+export type ValidReview = {
+  managerId: string;
+  rating: number;
+  body: string;
+  tags: string[];
+};
 
 export type ValidationResult =
   | { ok: true; value: ValidReview }
   | { ok: false; spam: true }
   | { ok: false; spam?: false; error: string };
-
-function cleanLine(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
 
 function cleanBody(value: string): string {
   return value
@@ -45,10 +28,6 @@ function cleanBody(value: string): string {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-}
-
-function hasLetter(value: string): boolean {
-  return /\p{L}/u.test(value);
 }
 
 export function validateReview(draft: ReviewDraft): ValidationResult {
@@ -72,26 +51,7 @@ export function validateReview(draft: ReviewDraft): ValidationResult {
     return { ok: false, error: "Keep the review under 1500 characters." };
   }
 
-  if (draft.mode === "existing") {
-    const managerId = draft.managerId.trim();
-    if (!managerId) return { ok: false, error: "Choose a manager, or add one." };
-    return { ok: true, value: { mode: "existing", managerId, rating: draft.rating, body, tags } };
-  }
-
-  if (draft.mode === "new") {
-    const managerName = cleanLine(draft.managerName);
-    const managerTitle = cleanLine(draft.managerTitle);
-    if (managerName.length < 2 || managerName.length > 80 || !hasLetter(managerName)) {
-      return { ok: false, error: "Enter the manager's name." };
-    }
-    if (managerTitle.length < 2 || managerTitle.length > 80 || !hasLetter(managerTitle)) {
-      return { ok: false, error: "Enter the manager's role." };
-    }
-    return {
-      ok: true,
-      value: { mode: "new", managerName, managerTitle, rating: draft.rating, body, tags },
-    };
-  }
-
-  return { ok: false, error: "Choose a manager, or add one." };
+  const managerId = draft.managerId.trim();
+  if (!managerId) return { ok: false, error: "Search for a manager in your division." };
+  return { ok: true, value: { managerId, rating: draft.rating, body, tags } };
 }

@@ -52,15 +52,18 @@ test("example managers show the feed scores", async () => {
   }
 });
 
-test("a new manager is saved once and the review stays anonymous", async () => {
+test("a review can only be posted for a manager already in that division", async () => {
   const file = tempDb();
   const { db, queries } = await openDb(file, true);
   try {
+    db.getDb()
+      .prepare(
+        "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+      )
+      .run("mgr-naledi", "Naledi Khumalo", "Engineering Manager", "pyrometallurgy", "2026-10-29");
+
     const draft: ReviewDraft = {
-      mode: "new",
-      managerId: "",
-      managerName: "Naledi Khumalo",
-      managerTitle: "Engineering Manager",
+      managerId: "mgr-naledi",
       rating: 5,
       body: "She gives the team the reason for a decision and she shares the credit.",
       tags: ["clear-communicator", "fair"],
@@ -75,6 +78,7 @@ test("a new manager is saved once and the review stays anonymous", async () => {
     assert.equal(first.ok, true);
     assert.equal(second.ok, false);
     if (!first.ok) return;
+    assert.equal(first.managerId, "mgr-naledi");
 
     const columns = queries.reviewTableColumns();
     assert.deepEqual(columns, ["id", "manager_id", "rating", "body", "created_at"]);
@@ -103,11 +107,12 @@ test("a new manager is saved once and the review stays anonymous", async () => {
     assert.equal(extra.managerId, first.managerId);
     assert.equal(queries.listManagerOptions("pyrometallurgy").length, 1);
 
-    const otherDivision = queries.insertReview(valid.value, "finance");
-    assert.equal(otherDivision.ok, true);
-    if (!otherDivision.ok) return;
-    assert.notEqual(otherDivision.managerId, first.managerId);
-    assert.equal(queries.listFeed("finance").length, 1);
+    const otherDivision = queries.insertReview(
+      { ...valid.value, body: "A note that should stay inside the writer's own division." },
+      "finance",
+    );
+    assert.equal(otherDivision.ok, false);
+    assert.equal(queries.listFeed("finance").length, 0);
     assert.equal(queries.listFeed("pyrometallurgy").length, 1);
   } finally {
     db.resetDbForTests();
