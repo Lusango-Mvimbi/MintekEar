@@ -66,11 +66,10 @@ export default async function HomePage({
       </div>
 
       {viewer.source === "preview" ? (
-        <p className="no-print mb-4 rounded-2xl bg-[#fff6e0] px-4 py-3 text-sm leading-6 text-ink ring-1 ring-[#e0a100]/40">
-          <span className="font-semibold">Demo preview.</span> You are viewing {division}. This switch stands in for the
-          employee directory. Once that list is connected, the switch disappears and each person only sees their own
-          division. Written comments stay with selected HR. Open Human Resources, then Access, to choose who may read
-          comments, Analysis, and downloads.
+        <p className="no-print mb-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
+          Use <span className="font-semibold text-ink">Demo · viewing as</span> above to flip between a normal employee
+          and the HR administrator. The division list is only for trying other teams. When the employee directory is
+          connected, this demo bar disappears.
         </p>
       ) : null}
 

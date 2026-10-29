@@ -49,17 +49,19 @@ export async function submitReview(_prev: SubmitState, formData: FormData): Prom
   redirect(`/managers/${saved.managerId}?posted=1`);
 }
 
+const cookieOpts = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  path: "/",
+  maxAge: 60 * 60 * 24 * 30,
+};
+
 export async function previewDivision(formData: FormData) {
   if (process.env.MINTEKEAR_DIRECTORY === "employee") redirect("/");
   const id = String(formData.get("division") ?? "");
   if (!divisionById(id)) redirect("/");
   const jar = await cookies();
-  jar.set("mintekear_division", id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  jar.set("mintekear_division", id, cookieOpts);
   redirect("/");
 }
 
@@ -68,12 +70,31 @@ export async function previewStaff(formData: FormData) {
   const id = String(formData.get("staff") ?? "");
   if (!getHrStaff(id)) redirect("/");
   const jar = await cookies();
-  jar.set(previewStaffCookieName(), id, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  jar.set(previewStaffCookieName(), id, cookieOpts);
+  redirect("/");
+}
+
+/** One-click demo switch: normal employee or an HR access person. */
+export async function previewPersona(formData: FormData) {
+  if (process.env.MINTEKEAR_DIRECTORY === "employee") redirect("/");
+  const persona = String(formData.get("persona") ?? "");
+  const jar = await cookies();
+
+  if (persona === "employee") {
+    jar.set("mintekear_division", "pyrometallurgy", cookieOpts);
+    jar.set(previewStaffCookieName(), "hr-general", cookieOpts);
+    redirect("/");
+  }
+
+  const staffMap: Record<string, string> = {
+    "hr-admin": "hr-admin",
+    "hr-analyst": "hr-analyst",
+    "hr-colleague": "hr-general",
+  };
+  const staffId = staffMap[persona];
+  if (!staffId || !getHrStaff(staffId)) redirect("/");
+  jar.set("mintekear_division", "human-resources", cookieOpts);
+  jar.set(previewStaffCookieName(), staffId, cookieOpts);
   redirect("/");
 }
 

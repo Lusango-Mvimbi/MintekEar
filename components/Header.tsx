@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { DivisionSelect } from "@/components/DivisionSelect";
-import { StaffSelect } from "@/components/StaffSelect";
-import { listHrStaff } from "@/lib/access";
 import { company } from "@/lib/company";
 import { getViewer } from "@/lib/directory";
 import { DIVISIONS, divisionName } from "@/lib/divisions";
+import { personaHeadline } from "@/lib/persona";
 
 export async function Header() {
   const viewer = await getViewer();
   const divisionLabel = viewer.divisionId ? divisionName(viewer.divisionId) : "Directory";
-  const hrStaff = viewer.source === "preview" && viewer.hrDivision ? listHrStaff() : [];
+  const role = viewer.source === "preview" ? personaHeadline(viewer) : null;
 
   return (
     <header className="border-b border-line/80 bg-white print:hidden">
@@ -20,16 +19,16 @@ export async function Header() {
             <span className="block truncate text-lg font-bold tracking-tight text-ink">{company.appName}</span>
             <span className="block truncate text-xs text-muted">
               {divisionLabel}
-              {viewer.staffLabel ? ` · ${viewer.staffLabel}` : ""}
+              {role ? ` · ${role}` : ""}
             </span>
           </span>
         </Link>
         <div className="flex flex-wrap items-center gap-2">
-          {viewer.source === "preview" && viewer.divisionId ? (
+          {viewer.source === "preview" && viewer.divisionId && !viewer.hrDivision ? (
             <DivisionSelect divisions={DIVISIONS} current={viewer.divisionId} />
           ) : null}
-          {viewer.source === "preview" && viewer.hrDivision && viewer.staffId ? (
-            <StaffSelect staff={hrStaff} current={viewer.staffId} />
+          {viewer.source === "preview" && viewer.hrDivision ? (
+            <DivisionSelect divisions={DIVISIONS} current={viewer.divisionId!} />
           ) : null}
           {viewer.canViewAnalysis ? (
             <Link href="/report" className="rounded-full px-3 py-2 text-sm font-semibold text-accent">
