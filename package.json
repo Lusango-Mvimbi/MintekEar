@@ -1,0 +1,28 @@
+{
+  "name": "mintekear",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "NODE_OPTIONS='--experimental-sqlite' next dev",
+    "build": "NODE_OPTIONS='--experimental-sqlite' next build",
+    "start": "NODE_OPTIONS='--experimental-sqlite' next start",
+    "test": "NODE_OPTIONS='--experimental-sqlite' node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

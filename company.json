@@ -1,0 +1,16 @@
+{
+  "name": "Mintek",
+  "appName": "MintekEar",
+  "tagline": "Anonymous reviews of managers at Mintek. The organisation itself is not the subject.",
+  "logo": "/brand/mintek-logo.png",
+  "mark": "/brand/mintek-mark.png",
+  "colors": {
+    "primary": "#d22d20",
+    "primaryDark": "#a51f16",
+    "ink": "#00131d",
+    "muted": "#5e828d",
+    "paper": "#f3f6f7",
+    "accent": "#194d5c",
+    "line": "#e3eaeb"
+  }
+}
