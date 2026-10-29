@@ -29,9 +29,9 @@ export type ManagerSummary = {
   title: string;
   divisionId: string;
   sample: boolean;
-  average: number;
+  average: number | null;
   reviewCount: number;
-  latest: ReviewItem;
+  latest: ReviewItem | null;
 };
 
 export type ManagerDetail = {
@@ -40,7 +40,7 @@ export type ManagerDetail = {
   title: string;
   divisionId: string;
   sample: boolean;
-  average: number;
+  average: number | null;
   reviewCount: number;
   tagCounts: { id: string; count: number }[];
   reviews: ReviewItem[];
@@ -59,6 +59,8 @@ export type DivisionReport = {
 export type OrganisationReport = {
   reviewCount: number;
   average: number | null;
+  tagCounts: { id: string; count: number }[];
+  attention: { divisionId: string; name: string; average: number; reviewCount: number }[];
   divisions: DivisionReport[];
 };
 
@@ -139,17 +141,21 @@ function listManagers(divisionId: string | null, query: string): ManagerSummary[
          FROM managers m
          WHERE (? IS NULL OR m.division = ?)
        )
-       WHERE review_count > 0
-         AND (
+       WHERE (
            ? = ''
            OR lower(name) LIKE ? ESCAPE '\\'
            OR lower(title) LIKE ? ESCAPE '\\'
          )
-       ORDER BY latest_at DESC, name COLLATE NOCASE`,
+       ORDER BY
+         CASE WHEN latest_at IS NULL THEN 1 ELSE 0 END,
+         latest_at DESC,
+         name COLLATE NOCASE`,
     )
     .all(divisionId, divisionId, needle, pattern, pattern);
 
-  const latestIds = rows.map((row) => text(row.latest_id));
+  const latestIds = rows
+    .map((row) => row.latest_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
   const reviewRows = latestIds.length
     ? getDb()
         .prepare(
@@ -171,18 +177,18 @@ function listManagers(divisionId: string | null, query: string): ManagerSummary[
   const tags = tagsFor(latestIds);
 
   return rows.map((row) => {
-    const latestId = text(row.latest_id);
-    const latest = reviews.get(latestId);
-    if (!latest) throw new Error("Latest review is missing.");
+    const reviewCount = num(row.review_count);
+    const latestId = typeof row.latest_id === "string" ? row.latest_id : "";
+    const latest = latestId ? reviews.get(latestId) : undefined;
     return {
       id: text(row.id),
       name: text(row.name),
       title: text(row.title),
       divisionId: text(row.division),
       sample: num(row.sample) === 1,
-      average: num(row.average),
-      reviewCount: num(row.review_count),
-      latest: { ...latest, tags: tags.get(latestId) ?? [] },
+      average: reviewCount ? num(row.average) : null,
+      reviewCount,
+      latest: latest ? { ...latest, tags: tags.get(latestId) ?? [] } : null,
     };
   });
 }
@@ -246,7 +252,7 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
     title: text(row.title),
     divisionId,
     sample: num(row.sample) === 1,
-    average: reviews.length ? num(row.average) : 0,
+    average: reviews.length ? num(row.average) : null,
     reviewCount: num(row.review_count),
     tagCounts: sortTagIds([...counts.keys()]).map((tagId) => ({
       id: tagId,
@@ -285,7 +291,10 @@ export function organisationReport(): OrganisationReport {
   const divisions = DIVISIONS.map((division) => {
     const group = grouped.get(division.id) ?? [];
     const reviewCount = group.reduce((sum, manager) => sum + manager.reviewCount, 0);
-    const weighted = group.reduce((sum, manager) => sum + manager.average * manager.reviewCount, 0);
+    const weighted = group.reduce(
+      (sum, manager) => sum + (manager.average ?? 0) * manager.reviewCount,
+      0,
+    );
     const tagCounts = (tagsByDivision.get(division.id) ?? [])
       .filter((tag) => tagById(tag.id))
       .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
@@ -305,11 +314,40 @@ export function organisationReport(): OrganisationReport {
     (sum, division) => sum + (division.average ?? 0) * division.reviewCount,
     0,
   );
+  const orgTags = new Map<string, number>();
+  for (const division of divisions) {
+    for (const tag of division.tagCounts) {
+      orgTags.set(tag.id, (orgTags.get(tag.id) ?? 0) + tag.count);
+    }
+  }
+  const tagCounts = [...orgTags.entries()]
+    .map(([id, count]) => ({ id, count }))
+    .filter((tag) => tagById(tag.id))
+    .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
+  const attention = divisions
+    .filter(
+      (division) =>
+        division.reviewCount > 0 && division.average !== null && scoreNeedsAttention(division.average),
+    )
+    .map((division) => ({
+      divisionId: division.divisionId,
+      name: division.name,
+      average: division.average as number,
+      reviewCount: division.reviewCount,
+    }))
+    .sort((a, b) => a.average - b.average || a.name.localeCompare(b.name));
+
   return {
     reviewCount,
     average: reviewCount ? weighted / reviewCount : null,
+    tagCounts,
+    attention,
     divisions,
   };
+}
+
+function scoreNeedsAttention(average: number): boolean {
+  return average < 2.5;
 }
 
 export function insertReview(review: ValidReview, divisionId: string): InsertResult {

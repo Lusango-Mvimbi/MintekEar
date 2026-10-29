@@ -8,6 +8,7 @@ import { TAGS } from "@/lib/tags";
 import { StarIcon } from "./icons";
 
 const initialState: SubmitState = {};
+const minBody = 20;
 
 export function ReviewForm({
   managers,
@@ -44,19 +45,29 @@ export function ReviewForm({
 
   const selected = managers.find((manager) => manager.id === managerId);
   const needle = query.trim().toLowerCase();
-  const matches =
-    needle.length < 2
-      ? []
-      : managers
-          .filter((manager) => manager.name.toLowerCase().includes(needle) && manager.id !== managerId)
-          .slice(0, 8);
+  const matches = managers
+    .filter((manager) => {
+      if (manager.id === managerId) return false;
+      if (!needle) return true;
+      return manager.name.toLowerCase().includes(needle) || manager.title.toLowerCase().includes(needle);
+    })
+    .slice(0, needle ? 8 : 12);
+
+  const bodyLength = body.trim().length;
+  const ready = Boolean(managerId) && rating >= 1 && bodyLength >= minBody;
+  const bodyHint =
+    bodyLength === 0
+      ? `Write at least ${minBody} characters.`
+      : bodyLength < minBody
+        ? `${minBody - bodyLength} more characters needed.`
+        : `${bodyLength}/1500`;
 
   return (
     <form action={formAction} className="rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04] md:p-8">
       <h1 className="text-2xl font-bold tracking-tight">Write a review</h1>
       <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-        Search for a manager in {divisionName}. Only people already listed in this division appear. The review stores
-        the score, the words, and the day. It does not store who wrote it or which computer it came from.
+        Choose a manager in {divisionName}. Only people already listed in this division appear. The review stores the
+        score, the words, and the day. It does not store who wrote it or which computer it came from.
       </p>
 
       {state.error ? (
@@ -67,7 +78,10 @@ export function ReviewForm({
 
       <fieldset className="mt-8">
         <legend className="text-sm font-bold">Who is this about?</legend>
-        <p className="mt-1 text-sm text-muted">Type at least two letters of their name. You cannot add someone who is not already listed.</p>
+        <p className="mt-1 text-sm text-muted">
+          Pick from the list for {divisionName}, or type a name to narrow it. You cannot add someone who is not already
+          listed.
+        </p>
         <label className="mt-4 block text-sm font-medium">
           Search by name
           <input
@@ -92,11 +106,15 @@ export function ReviewForm({
           </p>
         ) : null}
 
-        {needle.length >= 2 && matches.length === 0 ? (
+        {!selected && managers.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">No managers are listed in your division yet.</p>
+        ) : null}
+
+        {!selected && needle && matches.length === 0 ? (
           <p className="mt-3 text-sm text-muted">No manager in your division matches that name.</p>
         ) : null}
 
-        {matches.length > 0 ? (
+        {!selected && matches.length > 0 ? (
           <ul className="mt-3 overflow-hidden rounded-2xl ring-1 ring-line">
             {matches.map((manager) => (
               <li key={manager.id} className="border-t border-line first:border-t-0">
@@ -122,7 +140,7 @@ export function ReviewForm({
         <div className="mt-3 flex flex-wrap items-center gap-4">
           <div role="radiogroup" aria-label="Score from 1 to 5" className="flex gap-1">
             {[1, 2, 3, 4, 5].map((value) => {
-              const selected = rating > 0 && value <= rating;
+              const on = rating > 0 && value <= rating;
               return (
                 <button
                   key={value}
@@ -131,7 +149,7 @@ export function ReviewForm({
                   aria-checked={rating === value}
                   aria-label={`${value} out of 5`}
                   onClick={() => setRating(value)}
-                  className={`rounded-lg p-1.5 ${selected ? "text-[#e0a100]" : "text-line"}`}
+                  className={`rounded-lg p-1.5 ${on ? "text-[#e0a100]" : "text-line"}`}
                 >
                   <StarIcon className="h-7 w-7" />
                 </button>
@@ -190,14 +208,18 @@ export function ReviewForm({
           value={body}
           onChange={(event) => setBody(event.target.value)}
           required
-          minLength={20}
+          minLength={minBody}
           maxLength={1500}
           rows={6}
           placeholder="What is it like to work for this person? Stick to what you saw them do."
           className="mt-2 w-full rounded-xl border border-line px-3 py-2.5 text-sm leading-6 font-normal outline-none focus:border-accent"
         />
-        <span className={`mt-1 block text-xs font-medium ${body.trim().length > 1500 ? "text-brand" : "text-muted"}`}>
-          {body.trim().length}/1500
+        <span
+          className={`mt-1 block text-xs font-medium ${
+            bodyLength > 1500 || (bodyLength > 0 && bodyLength < minBody) ? "text-brand" : "text-muted"
+          }`}
+        >
+          {bodyHint}
         </span>
       </label>
 
@@ -210,11 +232,14 @@ export function ReviewForm({
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !ready}
         className="mt-6 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:opacity-60"
       >
         {pending ? "Posting…" : "Post anonymously"}
       </button>
+      {!ready ? (
+        <p className="mt-2 text-xs text-muted">Choose a manager, a score, and at least {minBody} characters to post.</p>
+      ) : null}
     </form>
   );
 }

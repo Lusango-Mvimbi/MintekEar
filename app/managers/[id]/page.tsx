@@ -63,8 +63,8 @@ export default async function ManagerPage({
       </Link>
 
       {posted === "1" ? (
-        <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm text-accent ring-1 ring-accent/20">
-          Review posted. Your name was not stored.
+        <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-accent ring-1 ring-accent/20">
+          Review posted. Only the score, the words, and the day were stored. Your name was not stored.
         </p>
       ) : null}
 

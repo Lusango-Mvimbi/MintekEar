@@ -20,7 +20,7 @@ export function verdictLabel(value: number): string {
   const tone = scoreTone(value);
   if (tone === "good") return "Great manager";
   if (tone === "mixed") return "Mixed";
-  return "Avoid";
+  return "Needs attention";
 }
 
 export function initials(name: string): string {

@@ -7,7 +7,19 @@ const tones = {
   bad: { badge: "bg-[#fdecee] text-[#d64545]", label: "text-[#d64545]" },
 };
 
-export function ScoreBlock({ score }: { score: number }) {
+export function ScoreBlock({ score }: { score: number | null }) {
+  if (score === null) {
+    return (
+      <div className="flex flex-col items-start">
+        <div className="inline-flex items-center gap-1 rounded-xl bg-paper px-2.5 py-1 text-[15px] font-bold text-muted">
+          <StarIcon />
+          <span>—</span>
+        </div>
+        <p className="mt-2 text-sm font-semibold text-muted">No reviews yet</p>
+      </div>
+    );
+  }
+
   const tone = scoreTone(score);
   const style = tones[tone];
   return (

@@ -3,7 +3,7 @@ import { ReviewCard } from "@/components/ReviewCard";
 import { company } from "@/lib/company";
 import { getViewer } from "@/lib/directory";
 import { divisionName } from "@/lib/divisions";
-import { listFeed } from "@/lib/queries";
+import { listFeed, listManagerOptions } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,9 @@ export default async function HomePage({
 
   const division = divisionName(viewer.divisionId);
   const managers = listFeed(viewer.divisionId, query);
+  const listedCount = listManagerOptions(viewer.divisionId).length;
   const showingExamples = managers.some((manager) => manager.sample);
+  const reviewedCount = managers.filter((manager) => manager.reviewCount > 0).length;
 
   return (
     <div>
@@ -64,9 +66,10 @@ export default async function HomePage({
       </div>
 
       {viewer.source === "preview" ? (
-        <p className="no-print mb-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
-          Previewing {division}. Once the employee directory is connected, this switch disappears and each person sees
-          only their own division. Human Resources can open the analysis report.
+        <p className="no-print mb-4 rounded-2xl bg-[#fff6e0] px-4 py-3 text-sm leading-6 text-ink ring-1 ring-[#e0a100]/40">
+          <span className="font-semibold">Demo preview.</span> You are viewing {division}. This switch stands in for the
+          employee directory. Once that list is connected, the switch disappears and each person only sees their own
+          division. Human Resources can open Analysis.
         </p>
       ) : null}
 
@@ -79,17 +82,35 @@ export default async function HomePage({
       {managers.length === 0 ? (
         <div className="rounded-[22px] bg-white px-6 py-12 text-center shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04]">
           <p className="text-lg font-bold">
-            {query ? `No managers in ${division} match “${query}”.` : `No reviews in ${division} yet.`}
+            {query
+              ? `No managers in ${division} match “${query}”.`
+              : listedCount === 0
+                ? `No managers are listed in ${division} yet.`
+                : `No reviews in ${division} yet.`}
           </p>
-          <Link
-            href="/review"
-            className="mt-5 inline-block rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white"
-          >
-            Write a review
-          </Link>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
+            {query
+              ? "Try another name, or clear the search."
+              : listedCount === 0
+                ? "When the employee directory adds managers for this division, they will appear here."
+                : "Managers in this division are listed. Open Write a review to leave the first one."}
+          </p>
+          {!query && listedCount > 0 ? (
+            <Link
+              href="/review"
+              className="mt-5 inline-block rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white"
+            >
+              Write a review
+            </Link>
+          ) : null}
         </div>
       ) : (
         <div className="space-y-4">
+          {reviewedCount === 0 && !query ? (
+            <p className="rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
+              Managers in {division} are listed below. None have reviews yet — be the first to write one.
+            </p>
+          ) : null}
           {managers.map((manager) => (
             <ReviewCard key={manager.id} manager={manager} />
           ))}

@@ -26,7 +26,12 @@ test("example managers show the feed scores", async () => {
   try {
     const feed = queries.listOrganisation();
     assert.deepEqual(
-      feed.map((manager) => [manager.name, formatScore(manager.average), manager.sample, manager.divisionId]),
+      feed.map((manager) => [
+        manager.name,
+        manager.average === null ? null : formatScore(manager.average),
+        manager.sample,
+        manager.divisionId,
+      ]),
       [
         ["Thabo Molefe", "1.0", true, "pyrometallurgy"],
         ["Lerato Nkosi", "5.0", true, "hydrometallurgy"],
@@ -35,6 +40,8 @@ test("example managers show the feed scores", async () => {
         ["Sipho Dlamini", "3.5", true, "measurement-and-control"],
       ],
     );
+    assert.ok(feed[0].latest);
+    assert.ok(feed[3].latest);
     assert.deepEqual(feed[0].latest.tags, ["micromanages", "takes-credit", "blames-team"]);
     assert.deepEqual(feed[3].latest.tags, ["low-ego", "poor-communication", "plays-favourites"]);
     assert.equal(queries.listFeed("analytical-chemistry", "laboratory").length, 1);
@@ -92,6 +99,7 @@ test("a review can only be posted for a manager already in that division", async
     assert.equal(manager.sample, false);
     assert.equal(manager.divisionId, "pyrometallurgy");
     assert.equal(manager.reviewCount, 1);
+    assert.ok(manager.average !== null);
     assert.equal(formatScore(manager.average), "5.0");
     assert.equal(manager.reviews[0].body, draft.body);
     assert.match(manager.reviews[0].createdAt, /^\d{4}-\d{2}-\d{2}$/);

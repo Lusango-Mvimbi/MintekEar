@@ -5,9 +5,10 @@ import type { Division } from "@/lib/divisions";
 
 export function DivisionSelect({ divisions, current }: { divisions: readonly Division[]; current: string }) {
   return (
-    <form action={previewDivision} className="min-w-0">
+    <form action={previewDivision} className="flex min-w-0 items-center gap-2">
+      <span className="hidden text-xs font-bold tracking-wide text-muted uppercase sm:inline">Demo preview</span>
       <label className="sr-only" htmlFor="division">
-        Preview division
+        Demo preview division
       </label>
       <select
         id="division"
