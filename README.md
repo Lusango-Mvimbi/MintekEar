@@ -26,9 +26,9 @@ Reviews are stored in `data/mintekear.db`. That file is created on first launch 
 
 Each person sees reviews for their own division. The division names match the Mintek directory: Pyrometallurgy, Hydrometallurgy, Analytical Chemistry, Human Resources, and the others shown there. The lists under those names are document libraries, not extra divisions.
 
-Until the employee database is connected, the header has a division preview so the filter can be tried. Choose Human Resources to open Analysis. Set `MINTEKEAR_DIRECTORY=employee` when the directory is ready. The connection point is `lookupEmployee` in [`lib/directory.ts`](lib/directory.ts). It should return only the person's division. It must not return a name, staff number, email, or device, and that result must not be saved with a review.
+Until the employee database is connected, the header has a division preview so the filter can be tried. Choose Human Resources, then pick an HR access person. Set `MINTEKEAR_DIRECTORY=employee` when the directory is ready. The connection point is `lookupEmployee` in [`lib/directory.ts`](lib/directory.ts). It should return only the person's division and which HR privileges they have. It must not pass a name, staff number, email, or device into the review save.
 
-The analysis report is counts, averages, and traits by division. It is available to Human Resources.
+Employees see scores and traits for managers in their own division. They do not see the written comments. An administrator chooses which people in Human Resources may read comments, open Analysis, and download / print the report. Other HR colleagues get the same access as other employees. The Access page is at `/admin`.
 
 ## What a review stores
 

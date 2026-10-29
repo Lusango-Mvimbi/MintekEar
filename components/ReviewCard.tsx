@@ -7,7 +7,13 @@ import { ChevronIcon } from "./icons";
 import { ScoreBlock } from "./ScoreBlock";
 import { TagPills } from "./TagPills";
 
-export function ReviewCard({ manager }: { manager: ManagerSummary }) {
+export function ReviewCard({
+  manager,
+  showComments,
+}: {
+  manager: ManagerSummary;
+  showComments: boolean;
+}) {
   const scoreLabel = manager.average === null ? "no reviews yet" : `rated ${formatScore(manager.average)}`;
   return (
     <Link
@@ -42,10 +48,20 @@ export function ReviewCard({ manager }: { manager: ManagerSummary }) {
       </span>
       <span>
         {manager.latest ? (
-          <>
-            <span className="line-clamp-4 text-[15px] leading-6 text-ink">{manager.latest.body}</span>
-            <span className="mt-3 block text-sm text-muted">{timeAgo(manager.latest.createdAt)}</span>
-          </>
+          showComments && manager.latest.body ? (
+            <>
+              <span className="line-clamp-4 text-[15px] leading-6 text-ink">{manager.latest.body}</span>
+              <span className="mt-3 block text-sm text-muted">{timeAgo(manager.latest.createdAt)}</span>
+            </>
+          ) : (
+            <>
+              <span className="text-[15px] leading-6 text-muted">
+                {manager.reviewCount} anonymous {manager.reviewCount === 1 ? "review" : "reviews"}. Comments are only
+                open to selected HR.
+              </span>
+              <span className="mt-3 block text-sm text-muted">{timeAgo(manager.latest.createdAt)}</span>
+            </>
+          )
         ) : (
           <>
             <span className="text-[15px] leading-6 text-muted">No reviews yet. Be the first to write one.</span>

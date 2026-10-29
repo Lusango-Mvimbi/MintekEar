@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { DivisionSelect } from "@/components/DivisionSelect";
+import { StaffSelect } from "@/components/StaffSelect";
+import { listHrStaff } from "@/lib/access";
 import { company } from "@/lib/company";
 import { getViewer } from "@/lib/directory";
 import { DIVISIONS, divisionName } from "@/lib/divisions";
@@ -7,6 +9,7 @@ import { DIVISIONS, divisionName } from "@/lib/divisions";
 export async function Header() {
   const viewer = await getViewer();
   const divisionLabel = viewer.divisionId ? divisionName(viewer.divisionId) : "Directory";
+  const hrStaff = viewer.source === "preview" && viewer.hrDivision ? listHrStaff() : [];
 
   return (
     <header className="border-b border-line/80 bg-white print:hidden">
@@ -15,16 +18,27 @@ export async function Header() {
           <img src={company.logo} alt="" className="h-12 w-auto" />
           <span className="min-w-0">
             <span className="block truncate text-lg font-bold tracking-tight text-ink">{company.appName}</span>
-            <span className="block truncate text-xs text-muted">{divisionLabel}</span>
+            <span className="block truncate text-xs text-muted">
+              {divisionLabel}
+              {viewer.staffLabel ? ` · ${viewer.staffLabel}` : ""}
+            </span>
           </span>
         </Link>
         <div className="flex flex-wrap items-center gap-2">
           {viewer.source === "preview" && viewer.divisionId ? (
             <DivisionSelect divisions={DIVISIONS} current={viewer.divisionId} />
           ) : null}
-          {viewer.hr ? (
+          {viewer.source === "preview" && viewer.hrDivision && viewer.staffId ? (
+            <StaffSelect staff={hrStaff} current={viewer.staffId} />
+          ) : null}
+          {viewer.canViewAnalysis ? (
             <Link href="/report" className="rounded-full px-3 py-2 text-sm font-semibold text-accent">
               Analysis
+            </Link>
+          ) : null}
+          {viewer.isAdmin ? (
+            <Link href="/admin" className="rounded-full px-3 py-2 text-sm font-semibold text-accent">
+              Access
             </Link>
           ) : null}
           <Link

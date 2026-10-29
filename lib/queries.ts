@@ -6,7 +6,10 @@ import type { ValidReview } from "./validation";
 
 export type ReviewAccess = {
   divisionId: string;
-  hr: boolean;
+  /** Privileged HR may open managers outside their own division. */
+  orgWide: boolean;
+  /** Only selected HR may receive review comment text. */
+  includeBodies: boolean;
 };
 
 export type ManagerOption = {
@@ -117,7 +120,7 @@ export function listManagerOptions(divisionId: string): ManagerOption[] {
   }));
 }
 
-function listManagers(divisionId: string | null, query: string): ManagerSummary[] {
+function listManagers(divisionId: string | null, query: string, includeBodies: boolean): ManagerSummary[] {
   const pattern = likePattern(query);
   const needle = query.trim().toLowerCase();
   const rows = getDb()
@@ -188,17 +191,25 @@ function listManagers(divisionId: string | null, query: string): ManagerSummary[
       sample: num(row.sample) === 1,
       average: reviewCount ? num(row.average) : null,
       reviewCount,
-      latest: latest ? { ...latest, tags: tags.get(latestId) ?? [] } : null,
+      latest: latest
+        ? {
+            id: latest.id,
+            rating: latest.rating,
+            body: includeBodies ? latest.body : "",
+            createdAt: latest.createdAt,
+            tags: tags.get(latestId) ?? [],
+          }
+        : null,
     };
   });
 }
 
-export function listFeed(divisionId: string, query = ""): ManagerSummary[] {
-  return listManagers(divisionId, query);
+export function listFeed(divisionId: string, query = "", includeBodies = false): ManagerSummary[] {
+  return listManagers(divisionId, query, includeBodies);
 }
 
-export function listOrganisation(): ManagerSummary[] {
-  return listManagers(null, "");
+export function listOrganisation(includeBodies = false): ManagerSummary[] {
+  return listManagers(null, "", includeBodies);
 }
 
 export function getManager(id: string, access: ReviewAccess): ManagerDetail | null {
@@ -218,7 +229,7 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
     .get(id);
   if (!row) return null;
   const divisionId = text(row.division);
-  if (!access.hr && divisionId !== access.divisionId) return null;
+  if (!access.orgWide && divisionId !== access.divisionId) return null;
 
   const reviewRows = getDb()
     .prepare(
@@ -235,7 +246,7 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
     return {
       id: reviewId,
       rating: num(review.rating),
-      body: text(review.body),
+      body: access.includeBodies ? text(review.body) : "",
       createdAt: text(review.created_at),
       tags: tags.get(reviewId) ?? [],
     };
@@ -263,7 +274,7 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
 }
 
 export function organisationReport(): OrganisationReport {
-  const managers = listOrganisation();
+  const managers = listOrganisation(false);
   const grouped = new Map<string, ManagerSummary[]>();
   for (const manager of managers) {
     const list = grouped.get(manager.divisionId) ?? [];

@@ -34,6 +34,14 @@ function migrate(db: DatabaseSync) {
       PRIMARY KEY (review_id, tag)
     );
     CREATE INDEX IF NOT EXISTS reviews_manager_created ON reviews (manager_id, created_at DESC);
+    CREATE TABLE IF NOT EXISTS hr_access (
+      staff_id TEXT PRIMARY KEY,
+      display_name TEXT NOT NULL,
+      can_read_comments INTEGER NOT NULL DEFAULT 0,
+      can_view_analysis INTEGER NOT NULL DEFAULT 0,
+      can_download_report INTEGER NOT NULL DEFAULT 0,
+      is_admin INTEGER NOT NULL DEFAULT 0
+    );
   `);
 
   const managerColumns = db.prepare("PRAGMA table_info(managers)").all() as { name: string }[];
@@ -55,6 +63,18 @@ function migrate(db: DatabaseSync) {
     UPDATE reviews SET created_at = substr(created_at, 1, 10) WHERE length(created_at) > 10;
     UPDATE managers SET created_at = substr(created_at, 1, 10) WHERE length(created_at) > 10;
   `);
+
+  const hrCount = db.prepare("SELECT COUNT(*) AS count FROM hr_access").get() as { count: number | bigint };
+  if (Number(hrCount.count) === 0) {
+    const insert = db.prepare(
+      `INSERT INTO hr_access
+        (staff_id, display_name, can_read_comments, can_view_analysis, can_download_report, is_admin)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    );
+    insert.run("hr-admin", "System administrator", 1, 1, 1, 1);
+    insert.run("hr-analyst", "HR analyst (example)", 1, 1, 1, 0);
+    insert.run("hr-general", "HR colleague (example)", 0, 0, 0, 0);
+  }
 }
 
 export function getDb(): DatabaseSync {

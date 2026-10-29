@@ -47,9 +47,28 @@ test("example managers show the feed scores", async () => {
     assert.equal(queries.listFeed("analytical-chemistry", "laboratory").length, 1);
     assert.equal(queries.listFeed("pyrometallurgy").length, 1);
     assert.equal(queries.listFeed("pyrometallurgy", "laboratory").length, 0);
-    assert.equal(queries.getManager("mgr-thabo", { divisionId: "hydrometallurgy", hr: false }), null);
-    assert.equal(queries.getManager("mgr-thabo", { divisionId: "pyrometallurgy", hr: false })?.name, "Thabo Molefe");
-    assert.equal(queries.getManager("mgr-thabo", { divisionId: "human-resources", hr: true })?.name, "Thabo Molefe");
+    assert.equal(
+      queries.getManager("mgr-thabo", { divisionId: "hydrometallurgy", orgWide: false, includeBodies: false }),
+      null,
+    );
+    assert.equal(
+      queries.getManager("mgr-thabo", { divisionId: "pyrometallurgy", orgWide: false, includeBodies: false })?.name,
+      "Thabo Molefe",
+    );
+    assert.equal(
+      queries.getManager("mgr-thabo", { divisionId: "human-resources", orgWide: true, includeBodies: true })?.name,
+      "Thabo Molefe",
+    );
+    assert.equal(
+      queries.getManager("mgr-thabo", { divisionId: "pyrometallurgy", orgWide: false, includeBodies: false })?.reviews[0]
+        .body,
+      "",
+    );
+    assert.match(
+      queries.getManager("mgr-thabo", { divisionId: "pyrometallurgy", orgWide: false, includeBodies: true })?.reviews[0]
+        .body ?? "",
+      /credit|team|work/i,
+    );
     const report = queries.organisationReport();
     assert.equal(report.divisions.find((division) => division.divisionId === "human-resources")?.reviewCount, 0);
     assert.equal(report.divisions.find((division) => division.divisionId === "pyrometallurgy")?.reviewCount, 2);
@@ -93,7 +112,7 @@ test("a review can only be posted for a manager already in that division", async
       assert.equal(/author|user|email|employee|staff|ip|agent|session|device|laptop|login|identity/i.test(column), false);
     }
 
-    const access = { divisionId: "pyrometallurgy", hr: false };
+    const access = { divisionId: "pyrometallurgy", orgWide: false, includeBodies: true };
     const manager = queries.getManager(first.managerId, access);
     assert.ok(manager);
     assert.equal(manager.sample, false);
@@ -104,7 +123,10 @@ test("a review can only be posted for a manager already in that division", async
     assert.equal(manager.reviews[0].body, draft.body);
     assert.match(manager.reviews[0].createdAt, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(queries.listManagerOptions("pyrometallurgy").length, 1);
-    assert.equal(queries.getManager(first.managerId, { divisionId: "finance", hr: false }), null);
+    assert.equal(
+      queries.getManager(first.managerId, { divisionId: "finance", orgWide: false, includeBodies: false }),
+      null,
+    );
 
     const again = validateReview({ ...draft, body: "A second note about how decisions are explained to the team." });
     assert.equal(again.ok, true);
@@ -145,7 +167,11 @@ test("manager reviews stay newest first across years", async () => {
     insert.run("rev-mid", "mgr-years", 3, "Mid-year note that should sit under the current year heading.", "2026-03-10");
     insert.run("rev-new", "mgr-years", 4, "Latest note for this manager that must appear at the top.", "2026-10-20");
 
-    const manager = queries.getManager("mgr-years", { divisionId: "pyrometallurgy", hr: false });
+    const manager = queries.getManager("mgr-years", {
+      divisionId: "pyrometallurgy",
+      orgWide: false,
+      includeBodies: true,
+    });
     assert.ok(manager);
     assert.deepEqual(
       manager.reviews.map((review) => [review.id, review.createdAt]),

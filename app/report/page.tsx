@@ -12,7 +12,7 @@ export const metadata = { title: "Analysis" };
 
 export default async function ReportPage() {
   const viewer = await getViewer();
-  if (!viewer.hr) notFound();
+  if (!viewer.canViewAnalysis) notFound();
   const report = organisationReport();
 
   return (
@@ -22,10 +22,13 @@ export default async function ReportPage() {
           <h1 className="text-[28px] font-bold tracking-tight">Analysis</h1>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
             Scores and traits across Mintek. This report has no author, staff number, or computer.
+            {viewer.canReadComments
+              ? " You can open a manager to read the comments."
+              : " Written comments stay closed unless Access also allows them for you."}
           </p>
         </div>
         <div className="no-print">
-          <PrintButton />
+          {viewer.canDownloadReport ? <PrintButton /> : null}
         </div>
       </div>
 

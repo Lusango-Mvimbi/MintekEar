@@ -29,7 +29,7 @@ export default async function HomePage({
   }
 
   const division = divisionName(viewer.divisionId);
-  const managers = listFeed(viewer.divisionId, query);
+  const managers = listFeed(viewer.divisionId, query, viewer.canReadComments);
   const listedCount = listManagerOptions(viewer.divisionId).length;
   const showingExamples = managers.some((manager) => manager.sample);
   const reviewedCount = managers.filter((manager) => manager.reviewCount > 0).length;
@@ -69,7 +69,8 @@ export default async function HomePage({
         <p className="no-print mb-4 rounded-2xl bg-[#fff6e0] px-4 py-3 text-sm leading-6 text-ink ring-1 ring-[#e0a100]/40">
           <span className="font-semibold">Demo preview.</span> You are viewing {division}. This switch stands in for the
           employee directory. Once that list is connected, the switch disappears and each person only sees their own
-          division. Human Resources can open Analysis.
+          division. Written comments stay with selected HR. Open Human Resources, then Access, to choose who may read
+          comments, Analysis, and downloads.
         </p>
       ) : null}
 
@@ -112,7 +113,7 @@ export default async function HomePage({
             </p>
           ) : null}
           {managers.map((manager) => (
-            <ReviewCard key={manager.id} manager={manager} />
+            <ReviewCard key={manager.id} manager={manager} showComments={viewer.canReadComments} />
           ))}
         </div>
       )}

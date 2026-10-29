@@ -3,7 +3,8 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getViewer } from "@/lib/directory";
+import { getHrStaff, updateHrAccess } from "@/lib/access";
+import { getViewer, previewStaffCookieName } from "@/lib/directory";
 import { divisionById } from "@/lib/divisions";
 import { insertReview } from "@/lib/queries";
 import { validateReview, type ReviewDraft } from "@/lib/validation";
@@ -60,4 +61,34 @@ export async function previewDivision(formData: FormData) {
     maxAge: 60 * 60 * 24 * 30,
   });
   redirect("/");
+}
+
+export async function previewStaff(formData: FormData) {
+  if (process.env.MINTEKEAR_DIRECTORY === "employee") redirect("/");
+  const id = String(formData.get("staff") ?? "");
+  if (!getHrStaff(id)) redirect("/");
+  const jar = await cookies();
+  jar.set(previewStaffCookieName(), id, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  redirect("/");
+}
+
+export async function saveHrAccess(formData: FormData) {
+  const viewer = await getViewer();
+  if (!viewer.isAdmin) redirect("/");
+  const staffId = String(formData.get("staffId") ?? "");
+  const result = updateHrAccess(staffId, {
+    canReadComments: formData.get("canReadComments") === "on",
+    canViewAnalysis: formData.get("canViewAnalysis") === "on",
+    canDownloadReport: formData.get("canDownloadReport") === "on",
+  });
+  if (!result.ok) redirect("/admin?error=1");
+  revalidatePath("/admin");
+  revalidatePath("/report");
+  revalidatePath("/");
+  redirect("/admin?saved=1");
 }

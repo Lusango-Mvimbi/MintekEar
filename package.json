@@ -9,7 +9,7 @@
     "dev": "node scripts/with-sqlite.mjs next dev",
     "build": "node scripts/with-sqlite.mjs next build",
     "start": "node scripts/with-sqlite.mjs next start",
-    "test": "node scripts/with-sqlite.mjs --import tsx --test tests/company.test.ts tests/format.test.ts tests/reviews.test.ts tests/validation.test.ts"
+    "test": "node scripts/with-sqlite.mjs --import tsx --test tests/access.test.ts tests/company.test.ts tests/format.test.ts tests/reviews.test.ts tests/validation.test.ts"
   },
   "dependencies": {
     "next": "^16.4.3",
