@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, test } from "node:test";
-import { formatScore } from "../lib/format";
+import { formatScore, groupReviewsByYear } from "../lib/format";
 import { validateReview, type ReviewDraft } from "../lib/validation";
 
 function tempDb(): string {
@@ -114,6 +114,46 @@ test("a review can only be posted for a manager already in that division", async
     assert.equal(otherDivision.ok, false);
     assert.equal(queries.listFeed("finance").length, 0);
     assert.equal(queries.listFeed("pyrometallurgy").length, 1);
+  } finally {
+    db.resetDbForTests();
+    fs.rmSync(file, { force: true });
+  }
+});
+
+test("manager reviews stay newest first across years", async () => {
+  const file = tempDb();
+  const { db, queries } = await openDb(file, true);
+  try {
+    db.getDb()
+      .prepare(
+        "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+      )
+      .run("mgr-years", "Yearly Manager", "Team Lead", "pyrometallurgy", "2024-01-01");
+
+    const insert = db
+      .getDb()
+      .prepare("INSERT INTO reviews (id, manager_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?)");
+    insert.run("rev-old", "mgr-years", 2, "Older note from the previous year about the same team lead.", "2025-06-01");
+    insert.run("rev-mid", "mgr-years", 3, "Mid-year note that should sit under the current year heading.", "2026-03-10");
+    insert.run("rev-new", "mgr-years", 4, "Latest note for this manager that must appear at the top.", "2026-10-20");
+
+    const manager = queries.getManager("mgr-years", { divisionId: "pyrometallurgy", hr: false });
+    assert.ok(manager);
+    assert.deepEqual(
+      manager.reviews.map((review) => [review.id, review.createdAt]),
+      [
+        ["rev-new", "2026-10-20"],
+        ["rev-mid", "2026-03-10"],
+        ["rev-old", "2025-06-01"],
+      ],
+    );
+    assert.deepEqual(
+      groupReviewsByYear(manager.reviews).map((group) => [group.year, group.reviews.map((review) => review.id)]),
+      [
+        [2026, ["rev-new", "rev-mid"]],
+        [2025, ["rev-old"]],
+      ],
+    );
   } finally {
     db.resetDbForTests();
     fs.rmSync(file, { force: true });

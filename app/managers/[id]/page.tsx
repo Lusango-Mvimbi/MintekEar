@@ -6,7 +6,7 @@ import { ScoreBlock } from "@/components/ScoreBlock";
 import { TagPills } from "@/components/TagPills";
 import { getViewer } from "@/lib/directory";
 import { divisionName } from "@/lib/divisions";
-import { timeAgo } from "@/lib/format";
+import { groupReviewsByYear, timeAgo } from "@/lib/format";
 import { getManager } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -115,26 +115,31 @@ export default async function ManagerPage({
         </div>
       </section>
 
-      <section className="mt-6 space-y-4">
+      <section className="mt-6 space-y-8">
         <h2 className="text-lg font-bold">Reviews</h2>
-        {manager.reviews.map((review) => (
-          <article
-            key={review.id}
-            className="rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04]"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <ScoreBlock score={review.rating} />
-              <time className="text-sm text-muted" dateTime={review.createdAt}>
-                {timeAgo(review.createdAt)}
-              </time>
-            </div>
-            {review.tags.length > 0 ? (
-              <div className="mt-4">
-                <TagPills tags={review.tags} />
-              </div>
-            ) : null}
-            <p className="mt-4 text-[15px] leading-7 whitespace-pre-wrap">{review.body}</p>
-          </article>
+        {groupReviewsByYear(manager.reviews).map(({ year, reviews }) => (
+          <div key={year} className="space-y-4">
+            <h3 className="text-sm font-bold tracking-wide text-muted">{year}</h3>
+            {reviews.map((review) => (
+              <article
+                key={review.id}
+                className="rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04]"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <ScoreBlock score={review.rating} />
+                  <time className="text-sm text-muted" dateTime={review.createdAt}>
+                    {timeAgo(review.createdAt)}
+                  </time>
+                </div>
+                {review.tags.length > 0 ? (
+                  <div className="mt-4">
+                    <TagPills tags={review.tags} />
+                  </div>
+                ) : null}
+                <p className="mt-4 text-[15px] leading-7 whitespace-pre-wrap">{review.body}</p>
+              </article>
+            ))}
+          </div>
         ))}
       </section>
     </div>

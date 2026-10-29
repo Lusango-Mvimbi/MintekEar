@@ -47,8 +47,32 @@ function dayNumber(day: string): number {
   return Date.UTC(year, month - 1, date);
 }
 
+export function calendarDay(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : reviewDate(new Date(value).getTime());
+}
+
+export function reviewYear(value: string): number {
+  return Number(calendarDay(value).slice(0, 4));
+}
+
+/** Newest year first. Within each year, keep the given order (expect newest day first). */
+export function groupReviewsByYear<T extends { createdAt: string }>(
+  reviews: T[],
+): { year: number; reviews: T[] }[] {
+  const groups = new Map<number, T[]>();
+  for (const review of reviews) {
+    const year = reviewYear(review.createdAt);
+    const list = groups.get(year) ?? [];
+    list.push(review);
+    groups.set(year, list);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([year, yearReviews]) => ({ year, reviews: yearReviews }));
+}
+
 export function timeAgo(value: string, now = Date.now()): string {
-  const day = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : reviewDate(new Date(value).getTime());
+  const day = calendarDay(value);
   const diff = Math.round((dayNumber(reviewDate(now)) - dayNumber(day)) / 86_400_000);
   if (diff <= 0) return "Today";
   if (diff === 1) return "1d ago";

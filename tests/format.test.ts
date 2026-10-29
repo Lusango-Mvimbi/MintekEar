@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatScore, initials, reviewDate, timeAgo, verdictLabel } from "../lib/format";
+import {
+  formatScore,
+  groupReviewsByYear,
+  initials,
+  reviewDate,
+  reviewYear,
+  timeAgo,
+  verdictLabel,
+} from "../lib/format";
 
 test("scores use one decimal and a verdict", () => {
   assert.equal(formatScore(1), "1.0");
@@ -25,4 +33,22 @@ test("dates stay in whole days", () => {
   assert.equal(timeAgo("2026-10-29T10:00:00.000Z", now), "Today");
   assert.equal(timeAgo("2026-10-28", now), "1d ago");
   assert.equal(timeAgo("2026-10-26", now), "3d ago");
+});
+
+test("reviews group by year with the latest year first", () => {
+  assert.equal(reviewYear("2025-12-31"), 2025);
+  assert.equal(reviewYear("2026-01-01T12:00:00.000Z"), 2026);
+  assert.deepEqual(
+    groupReviewsByYear([
+      { id: "a", createdAt: "2026-03-01" },
+      { id: "b", createdAt: "2026-01-15" },
+      { id: "c", createdAt: "2025-11-02" },
+      { id: "d", createdAt: "2024-06-01" },
+    ]).map((group) => [group.year, group.reviews.map((review) => review.id)]),
+    [
+      [2026, ["a", "b"]],
+      [2025, ["c"]],
+      [2024, ["d"]],
+    ],
+  );
 });
