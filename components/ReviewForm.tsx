@@ -8,6 +8,7 @@ import { POLICY_ACCEPT_LABEL, POLICY_SHORT } from "@/lib/policy";
 import type { ManagerOption } from "@/lib/queries";
 import { TAGS, parseTrait, tagById } from "@/lib/tags";
 import { StarIcon } from "./icons";
+import { TraitChip } from "./TagPills";
 
 const initialState: SubmitState = {};
 const minBody = 20;
@@ -183,35 +184,31 @@ export function ReviewForm({
         <p className="mt-1 text-sm text-muted">Optional. Choose up to 6.</p>
         {(["positive", "negative"] as const).map((tone) => (
           <div key={tone} className="mt-4">
-            <p className="text-xs font-bold tracking-wide text-muted uppercase">
+            <p className={`trait-group trait-group--${tone}`}>
+              <span className={`trait-mark trait-mark--${tone}`} aria-hidden="true" />
               {tone === "positive" ? "Goes well" : "Gets in the way"}
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {TAGS.filter((tag) => tag.tone === tone).map((tag) => {
                 const on = tags.includes(tag.id);
                 return (
-                  <button
+                  <TraitChip
                     key={tag.id}
-                    type="button"
-                    aria-pressed={on}
+                    tone={tag.tone}
+                    label={tag.label}
+                    selected={on}
+                    pressed={on}
+                    locked={!on && tags.length >= 6}
                     onClick={() => toggleTag(tag.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                      on
-                        ? tag.tone === "positive"
-                          ? "border-[#0f8a4b] bg-[#e7f6ee] text-[#0f8a4b]"
-                          : "border-[#d64545] bg-[#fdecee] text-[#d64545]"
-                        : "border-line bg-white text-ink"
-                    }`}
-                  >
-                    {tag.label}
-                  </button>
+                  />
                 );
               })}
             </div>
           </div>
         ))}
         <div className="mt-4">
-          <label htmlFor="custom-trait" className="text-xs font-bold tracking-wide text-muted uppercase">
+          <label htmlFor="custom-trait" className="trait-group trait-group--custom">
+            <span className="trait-mark trait-mark--custom" aria-hidden="true" />
             Add your own
           </label>
           <div className="mt-2 flex gap-2">
@@ -234,13 +231,7 @@ export function ReviewForm({
               aria-describedby={tagNote ? "custom-trait-error" : undefined}
               className="min-w-0 flex-1 rounded-full border border-line bg-white px-3 py-1.5 text-sm outline-none focus:border-accent"
             />
-            <button
-              type="button"
-              onClick={addCustomTrait}
-              className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
-            >
-              Add
-            </button>
+            <TraitChip tone="action" label="Add" locked={tags.length >= 6} onClick={addCustomTrait} />
           </div>
           {tagNote ? (
             <p id="custom-trait-error" role="alert" className="mt-2 text-sm text-[#d64545]">
@@ -251,15 +242,13 @@ export function ReviewForm({
             <ul className="mt-2 flex flex-wrap gap-2">
               {customTags.map((tag) => (
                 <li key={tag}>
-                  <button
-                    type="button"
+                  <TraitChip
+                    tone="custom"
+                    label={tag}
+                    removable
+                    ariaLabel={`Remove ${tag}`}
                     onClick={() => toggleTag(tag)}
-                    aria-label={`Remove ${tag}`}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#194d5c] bg-[#eef4f6] px-3 py-1.5 text-xs font-semibold text-ink"
-                  >
-                    {tag}
-                    <span aria-hidden="true">×</span>
-                  </button>
+                  />
                 </li>
               ))}
             </ul>

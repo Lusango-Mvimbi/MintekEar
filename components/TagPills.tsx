@@ -1,30 +1,87 @@
-import { displayTrait } from "@/lib/tags";
+import type { ReactNode } from "react";
+import { displayTrait, type TraitTone } from "@/lib/tags";
 
 type TagItem = string | { id: string; count?: number };
+
+export type TraitChipTone = TraitTone | "action";
+
+export function TraitChip({
+  tone,
+  label,
+  count,
+  selected = false,
+  pressed,
+  locked = false,
+  removable = false,
+  onClick,
+  ariaLabel,
+}: {
+  tone: TraitChipTone;
+  label: ReactNode;
+  count?: number;
+  selected?: boolean;
+  pressed?: boolean;
+  locked?: boolean;
+  removable?: boolean;
+  onClick?: () => void;
+  ariaLabel?: string;
+}) {
+  const className = [
+    "trait-chip",
+    `trait-chip--${tone}`,
+    onClick ? "trait-chip--interactive" : "trait-chip--static",
+    selected ? "trait-chip--on" : "",
+    locked ? "trait-chip--locked" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const body = (
+    <>
+      <span className="trait-chip__cap" aria-hidden="true">
+        <span className={`trait-mark trait-mark--${tone}`} />
+      </span>
+      <span className="trait-chip__label">
+        {label}
+        {count && count > 1 ? <span className="trait-chip__count">{count}</span> : null}
+      </span>
+      {removable ? (
+        <span className="trait-chip__remove" aria-hidden="true">
+          ×
+        </span>
+      ) : null}
+    </>
+  );
+
+  if (!onClick) {
+    return <span className={className}>{body}</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
+    >
+      {body}
+    </button>
+  );
+}
 
 export function TagPills({ tags }: { tags: readonly TagItem[] }) {
   if (tags.length === 0) return null;
   return (
-    <ul className="flex flex-wrap gap-2">
+    <ul className="flex flex-wrap gap-1.5">
       {tags.map((item) => {
         const id = typeof item === "string" ? item : item.id;
         const count = typeof item === "string" ? undefined : item.count;
         const tag = displayTrait(id);
         if (!tag) return null;
-        const toneClass =
-          tag.tone === "positive"
-            ? "border-[#b7e4c7] bg-[#e7f6ee] text-[#0f8a4b]"
-            : tag.tone === "negative"
-              ? "border-[#f5c2c2] bg-[#fdecee] text-[#d64545]"
-              : "border-line bg-paper text-ink";
         return (
           <li key={id}>
-            <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClass}`}
-            >
-              {tag.label}
-              {count && count > 1 ? <span className="ml-1 opacity-70">{count}</span> : null}
-            </span>
+            <TraitChip tone={tag.tone} label={tag.label} count={count} />
           </li>
         );
       })}

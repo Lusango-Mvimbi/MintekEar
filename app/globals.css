@@ -50,3 +50,307 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* Trait chips: a narrow end-cap (circle / diamond / square) keeps Goes well,
+   Gets in the way, and custom notes distinct before a chip is chosen. */
+.trait-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.trait-group--positive {
+  --trait-mark: #194d5c;
+}
+
+.trait-group--negative {
+  --trait-mark: #d22d20;
+}
+
+.trait-group--custom {
+  --trait-mark: #194d5c;
+}
+
+.trait-chip {
+  --trait-bg: #fff;
+  --trait-bg-cap: #f3f6f7;
+  --trait-border: var(--line);
+  --trait-text: var(--ink);
+  --trait-mark: var(--accent);
+  --trait-seam: #c5d3d8;
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+  max-width: 100%;
+  min-height: 2rem;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--trait-border);
+  border-radius: 999px;
+  background-color: var(--trait-bg);
+  color: var(--trait-text);
+  font: inherit;
+  line-height: 1;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.trait-chip--static {
+  min-height: 1.65rem;
+}
+
+.trait-chip--positive {
+  --trait-bg: #e7f4f6;
+  --trait-bg-cap: #d3e8ed;
+  --trait-border: #b7d5dc;
+  --trait-text: #0d3c4a;
+  --trait-mark: #194d5c;
+  --trait-seam: #7eacb8;
+}
+
+.trait-chip--negative {
+  --trait-bg: #fdf3ee;
+  --trait-bg-cap: #f8e3d9;
+  --trait-border: #f0d0c4;
+  --trait-text: #7a3418;
+  --trait-mark: #d22d20;
+  --trait-seam: #e3b4a4;
+}
+
+.trait-chip--custom {
+  --trait-bg: #fff;
+  --trait-bg-cap: #194d5c;
+  --trait-border: #194d5c;
+  --trait-text: #00131d;
+  --trait-mark: #fff;
+  --trait-seam: rgba(255, 255, 255, 0.4);
+}
+
+.trait-chip--action {
+  --trait-bg: #fff;
+  --trait-bg-cap: #f3f6f7;
+  --trait-border: var(--line);
+  --trait-text: #194d5c;
+  --trait-mark: #194d5c;
+  --trait-seam: #c5d3d8;
+}
+
+.trait-chip--on.trait-chip--positive {
+  --trait-bg: #194d5c;
+  --trait-bg-cap: #123843;
+  --trait-border: #123843;
+  --trait-text: #fff;
+  --trait-mark: #fff;
+  --trait-seam: rgba(255, 255, 255, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.trait-chip--on.trait-chip--negative {
+  --trait-bg: #a51f16;
+  --trait-bg-cap: #861910;
+  --trait-border: #861910;
+  --trait-text: #fff;
+  --trait-mark: #fff;
+  --trait-seam: rgba(255, 255, 255, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.trait-chip--interactive {
+  cursor: pointer;
+  user-select: none;
+}
+
+.trait-chip--locked {
+  cursor: not-allowed;
+  filter: saturate(0.55);
+}
+
+.trait-chip__cap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  background-color: var(--trait-bg-cap);
+  transition: background-color 160ms ease;
+}
+
+.trait-chip--static .trait-chip__cap {
+  width: 1.2rem;
+}
+
+.trait-chip__cap::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 0;
+  bottom: 5px;
+  width: 1px;
+  background: var(--trait-seam);
+}
+
+.trait-mark {
+  display: block;
+  flex: none;
+  background: var(--trait-mark);
+}
+
+.trait-mark--positive {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.trait-mark--negative {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.trait-mark--custom {
+  width: 6px;
+  height: 6px;
+  border-radius: 1.5px;
+}
+
+.trait-mark--action {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+.trait-mark--action::before,
+.trait-mark--action::after {
+  content: "";
+  position: absolute;
+  border-radius: 1px;
+  background: var(--trait-mark);
+  transition: background-color 160ms ease;
+}
+
+.trait-mark--action::before {
+  top: 3.25px;
+  left: 0;
+  width: 8px;
+  height: 1.5px;
+}
+
+.trait-mark--action::after {
+  top: 0;
+  left: 3.25px;
+  width: 1.5px;
+  height: 8px;
+}
+
+.trait-chip__label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0.35rem 0.72rem 0.35rem 0.48rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+  overflow-wrap: anywhere;
+}
+
+.trait-chip--static .trait-chip__label {
+  padding: 0.22rem 0.55rem 0.22rem 0.38rem;
+}
+
+.trait-chip--on .trait-chip__label {
+  font-weight: 700;
+}
+
+.trait-chip__count {
+  margin-left: 0.35rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  opacity: 0.72;
+}
+
+.trait-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  margin-left: -0.2rem;
+  padding: 0 0.62rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.trait-chip--interactive:not(.trait-chip--locked):hover .trait-chip__remove {
+  opacity: 1;
+}
+
+.trait-chip--interactive:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.trait-chip--interactive.trait-chip--positive:not(.trait-chip--on):not(.trait-chip--locked):hover {
+  --trait-bg: #d7ebee;
+  --trait-bg-cap: #c3dfe6;
+  --trait-border: #8fbfcb;
+}
+
+.trait-chip--interactive.trait-chip--negative:not(.trait-chip--on):not(.trait-chip--locked):hover {
+  --trait-bg: #fbe7e0;
+  --trait-bg-cap: #f4d4c8;
+  --trait-border: #e4b09f;
+}
+
+.trait-chip--interactive.trait-chip--positive.trait-chip--on:not(.trait-chip--locked):hover {
+  --trait-bg: #143f4b;
+  --trait-bg-cap: #0f333e;
+}
+
+.trait-chip--interactive.trait-chip--negative.trait-chip--on:not(.trait-chip--locked):hover {
+  --trait-bg: #8e1b13;
+  --trait-bg-cap: #781610;
+}
+
+.trait-chip--interactive.trait-chip--custom:not(.trait-chip--locked):hover {
+  --trait-bg: #f4f7f8;
+  --trait-bg-cap: #123843;
+}
+
+.trait-chip--interactive.trait-chip--action:not(.trait-chip--locked):hover {
+  --trait-bg-cap: #194d5c;
+  --trait-border: #194d5c;
+  --trait-mark: #fff;
+  --trait-seam: rgba(255, 255, 255, 0.4);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .trait-chip--interactive:not(.trait-chip--locked):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(0, 19, 29, 0.08);
+  }
+
+  .trait-chip--interactive.trait-chip--on:not(.trait-chip--locked):hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 6px 14px rgba(0, 19, 29, 0.14);
+  }
+
+  .trait-chip--interactive:not(.trait-chip--locked):active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: none;
+  }
+}
