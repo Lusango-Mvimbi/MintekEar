@@ -18,9 +18,12 @@ describe("hr access", { concurrency: 1 }, () => {
     const access = await import("../lib/access");
     try {
       const staff = access.listHrStaff();
-      assert.equal(staff.length, 2);
+      assert.equal(staff.length, 3);
       assert.equal(staff.filter((person) => person.isAdmin).length, 1);
       assert.equal(access.getHrStaff("hr-analyst"), null);
+      const hrColleague = access.getHrStaff("hr-ayanda");
+      assert.equal(hrColleague?.displayName, "Ayanda September (example)");
+      assert.equal(hrColleague?.isAdmin, false);
 
       const colleague = staff.find((person) => person.staffId === "hr-general");
       assert.ok(colleague);
@@ -93,9 +96,86 @@ describe("hr access", { concurrency: 1 }, () => {
       assert.equal(access.getHrStaff("hr-general")?.displayName, "Colleague (example)");
       assert.equal(access.getHrStaff("hr-general")?.canReadComments, false);
       assert.equal(access.getHrStaff("hr-admin")?.displayName, "Administrator (HR)");
+      assert.equal(access.getHrStaff("hr-ayanda")?.displayName, "Ayanda September (example)");
+      assert.equal(access.getHrStaff("hr-ayanda")?.isAdmin, false);
       assert.equal(access.listHrStaff().some((person) => /analyst|HR colleague/i.test(person.displayName)), false);
     } finally {
       dbMod.resetDbForTests();
+      fs.rmSync(file, { force: true });
+    }
+  });
+
+  test("an administrator can promote a colleague and cannot remove the last administrator", async () => {
+    const file = tempDb();
+    process.env.MINTEKEAR_DB = file;
+    process.env.MINTEKEAR_SKIP_SEED = "1";
+    const db = await import("../lib/db");
+    db.resetDbForTests();
+    const access = await import("../lib/access");
+    const { alignHrAccess } = await import("../lib/hr-seed");
+    try {
+      const blocked = access.setHrRole("hr-admin", "colleague");
+      assert.equal(blocked.ok, false);
+      if (!blocked.ok) assert.equal(blocked.error, "last");
+      assert.equal(access.getHrStaff("hr-admin")?.isAdmin, true);
+
+      const missing = access.setHrRole("nobody", "administrator");
+      assert.equal(missing.ok, false);
+
+      const promoted = access.setHrRole("hr-ayanda", "administrator");
+      assert.equal(promoted.ok, true);
+      const ayanda = access.getHrStaff("hr-ayanda");
+      assert.equal(ayanda?.isAdmin, true);
+      assert.equal(ayanda?.canReadComments, true);
+      assert.equal(ayanda?.canViewAnalysis, true);
+      assert.equal(ayanda?.canDownloadReport, true);
+      assert.equal(ayanda?.displayName, "Ayanda September (example)");
+
+      const grants = access.grantsForStaff("hr-ayanda");
+      assert.equal(grants.isAdmin, true);
+      assert.equal(grants.canReadComments, true);
+
+      const database = db.getDb();
+      database
+        .prepare(
+          `UPDATE hr_access
+           SET can_read_comments = 0, can_view_analysis = 0, can_download_report = 0
+           WHERE staff_id = ?`,
+        )
+        .run("hr-ayanda");
+      assert.equal(access.grantsForStaff("hr-ayanda").canViewAnalysis, true);
+      assert.equal(access.getHrStaff("hr-ayanda")?.canDownloadReport, true);
+
+      alignHrAccess(database);
+      assert.equal(access.getHrStaff("hr-ayanda")?.isAdmin, true);
+      assert.equal(access.getHrStaff("hr-general")?.isAdmin, false);
+
+      const removed = access.setHrRole("hr-admin", "colleague");
+      assert.equal(removed.ok, true);
+      const former = access.getHrStaff("hr-admin");
+      assert.equal(former?.isAdmin, false);
+      assert.equal(former?.canReadComments, false);
+      assert.equal(former?.canViewAnalysis, false);
+      assert.equal(former?.canDownloadReport, false);
+      assert.equal(former?.displayName, "Administrator (HR)");
+      assert.equal(access.getHrStaff("hr-ayanda")?.isAdmin, true);
+
+      const stillLast = access.setHrRole("hr-ayanda", "colleague");
+      assert.equal(stillLast.ok, false);
+      if (!stillLast.ok) assert.equal(stillLast.error, "last");
+      assert.equal(access.getHrStaff("hr-ayanda")?.isAdmin, true);
+
+      const colleagueGrant = access.updateHrAccess("hr-general", {
+        canReadComments: true,
+        canViewAnalysis: false,
+        canDownloadReport: true,
+      });
+      assert.equal(colleagueGrant.ok, true);
+      assert.equal(access.getHrStaff("hr-general")?.isAdmin, false);
+      assert.equal(access.getHrStaff("hr-general")?.canReadComments, true);
+      assert.equal(access.getHrStaff("hr-general")?.canDownloadReport, true);
+    } finally {
+      db.resetDbForTests();
       fs.rmSync(file, { force: true });
     }
   });

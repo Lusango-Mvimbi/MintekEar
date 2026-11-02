@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getHrStaff, updateHrAccess } from "@/lib/access";
+import { getHrStaff, setHrRole, updateHrAccess, type HrRole } from "@/lib/access";
 import { updateAnalysisGraphVisibility } from "@/lib/analysis-graphs";
 import { getViewer, previewStaffCookieName } from "@/lib/directory";
 import { divisionById } from "@/lib/divisions";
@@ -128,6 +128,22 @@ export async function saveHrAccess(formData: FormData) {
   revalidatePath("/report");
   revalidatePath("/");
   redirect("/admin?saved=1");
+}
+
+export async function saveHrRole(formData: FormData) {
+  const viewer = await getViewer();
+  if (!viewer.isAdmin) redirect("/");
+  const staffId = String(formData.get("staffId") ?? "");
+  const role = String(formData.get("role") ?? "");
+  if (role !== "administrator" && role !== "colleague") redirect("/admin?error=1");
+  const nextRole: HrRole = role;
+  const result = setHrRole(staffId, nextRole);
+  if (!result.ok) redirect(result.error === "last" ? "/admin?error=last" : "/admin?error=1");
+  revalidatePath("/admin");
+  revalidatePath("/report");
+  revalidatePath("/");
+  if (nextRole === "colleague" && viewer.staffId === staffId) redirect("/");
+  redirect(`/admin?role=${nextRole}`);
 }
 
 export async function saveAnalysisGraphs(formData: FormData) {
