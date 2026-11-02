@@ -24,7 +24,6 @@ describe("analysis graph settings", { concurrency: 1 }, () => {
       const visibility = graphs.getAnalysisGraphVisibility();
       assert.equal(visibility.overview, true);
       assert.equal(visibility["division-scores"], true);
-      assert.equal(visibility["rating-mix"], true);
       assert.equal(visibility.attention, true);
       assert.equal(visibility.traits, true);
       assert.equal(visibility["division-table"], false);
@@ -47,6 +46,18 @@ describe("analysis graph settings", { concurrency: 1 }, () => {
       assert.equal(cleared.ok, true);
       assert.equal(cleared.visibility.overview, false);
       assert.equal(cleared.visibility.traits, false);
+
+      db.getDb()
+        .prepare("INSERT INTO analysis_graph_settings (graph_id, enabled) VALUES ('rating-mix', 1)")
+        .run();
+      const withoutScoreMix = graphs.getAnalysisGraphVisibility();
+      assert.equal(Object.hasOwn(withoutScoreMix, "rating-mix"), false);
+      assert.equal(withoutScoreMix.overview, false);
+      const leftover = db
+        .getDb()
+        .prepare("SELECT graph_id FROM analysis_graph_settings WHERE graph_id = 'rating-mix'")
+        .get();
+      assert.equal(leftover, undefined);
     } finally {
       db.resetDbForTests();
       fs.rmSync(file, { force: true });

@@ -17,14 +17,6 @@ function scopedDivision(report: OrganisationReport) {
   return report.divisions.find((division) => division.divisionId === report.scopeDivisionId) ?? null;
 }
 
-const RATING_FILL: Record<1 | 2 | 3 | 4 | 5, string> = {
-  1: "#d64545",
-  2: "#e07a3a",
-  3: "#c4841d",
-  4: "#3d9b6e",
-  5: "#0f8a4b",
-};
-
 function Panel({
   title,
   subtitle,
@@ -188,88 +180,6 @@ function DivisionScoreChart({ report }: { report: OrganisationReport }) {
           })}
         </svg>
       </div>
-    </Panel>
-  );
-}
-
-function RatingMixChart({ report }: { report: OrganisationReport }) {
-  const scoped = scopedDivision(report);
-  const total = report.ratingMix.reduce((sum, bucket) => sum + bucket.count, 0);
-  const mixSubtitle = scoped
-    ? `How reviews in ${scoped.name} land across the 1–5 scale.`
-    : "How reviews land across the 1–5 scale.";
-  if (total === 0) {
-    return (
-      <Panel title="Score mix" subtitle={mixSubtitle}>
-        <p className="text-sm text-muted">No reviews yet.</p>
-      </Panel>
-    );
-  }
-
-  const maxCount = Math.max(...report.ratingMix.map((bucket) => bucket.count), 1);
-  const chartHeight = 180;
-  const chartWidth = 520;
-  const padX = 36;
-  const padTop = 24;
-  const padBottom = 36;
-  const barGap = 18;
-  const usable = chartWidth - padX * 2;
-  const barWidth = (usable - barGap * 4) / 5;
-
-  return (
-    <Panel title="Score mix" subtitle={`${mixSubtitle} No author is shown.`}>
-      <div className="overflow-x-auto">
-        <svg
-          role="img"
-          aria-label="Column chart of review counts for scores one through five"
-          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="h-auto w-full min-w-[420px]"
-        >
-          {report.ratingMix.map((bucket, index) => {
-            const x = padX + index * (barWidth + barGap);
-            const plotHeight = chartHeight - padTop - padBottom;
-            const height = Math.max(bucket.count === 0 ? 0 : 8, (bucket.count / maxCount) * plotHeight);
-            const y = padTop + plotHeight - height;
-            const pct = Math.round((bucket.count / total) * 100);
-            return (
-              <g key={bucket.rating}>
-                <rect x={x} y={y} width={barWidth} height={height} rx={10} fill={RATING_FILL[bucket.rating]} />
-                <text
-                  x={x + barWidth / 2}
-                  y={y - 8}
-                  textAnchor="middle"
-                  className="fill-[var(--ink)] text-[12px] font-bold"
-                >
-                  {bucket.count}
-                </text>
-                <text
-                  x={x + barWidth / 2}
-                  y={chartHeight - 18}
-                  textAnchor="middle"
-                  className="fill-[var(--ink)] text-[13px] font-bold"
-                >
-                  {bucket.rating}
-                </text>
-                <text
-                  x={x + barWidth / 2}
-                  y={chartHeight - 4}
-                  textAnchor="middle"
-                  className="fill-[var(--muted)] text-[10px]"
-                >
-                  {pct}%
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      <ul className="sr-only">
-        {report.ratingMix.map((bucket) => (
-          <li key={bucket.rating}>
-            Score {bucket.rating}: {bucket.count} reviews
-          </li>
-        ))}
-      </ul>
     </Panel>
   );
 }
@@ -495,17 +405,7 @@ export function AnalysisCharts({
   return (
     <div className="mt-6 space-y-6">
       {visibility.overview ? <OverviewCards report={report} /> : null}
-      {visibility["division-scores"] && visibility["rating-mix"] ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <DivisionScoreChart report={report} />
-          <RatingMixChart report={report} />
-        </div>
-      ) : (
-        <>
-          {visibility["division-scores"] ? <DivisionScoreChart report={report} /> : null}
-          {visibility["rating-mix"] ? <RatingMixChart report={report} /> : null}
-        </>
-      )}
+      {visibility["division-scores"] ? <DivisionScoreChart report={report} /> : null}
       {visibility.attention ? <AttentionPanel report={report} /> : null}
       {visibility.traits ? <TraitFrequencyChart report={report} /> : null}
       {visibility["division-table"] ? <DivisionTable report={report} /> : null}

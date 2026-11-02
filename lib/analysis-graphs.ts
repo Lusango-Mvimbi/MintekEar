@@ -3,7 +3,6 @@ import { getDb } from "./db";
 export const ANALYSIS_GRAPH_IDS = [
   "overview",
   "division-scores",
-  "rating-mix",
   "attention",
   "traits",
   "division-table",
@@ -31,12 +30,6 @@ export const ANALYSIS_GRAPHS: readonly AnalysisGraphDefinition[] = [
     id: "division-scores",
     label: "Division score chart",
     description: "Average score by division as a horizontal bar chart.",
-    defaultEnabled: true,
-  },
-  {
-    id: "rating-mix",
-    label: "Score mix",
-    description: "How many anonymous reviews sit on each score from 1 to 5.",
     defaultEnabled: true,
   },
   {
@@ -81,6 +74,10 @@ function defaultVisibility(): AnalysisGraphVisibility {
 
 export function ensureAnalysisGraphSettings() {
   const db = getDb();
+  const placeholders = ANALYSIS_GRAPH_IDS.map(() => "?").join(", ");
+  db.prepare(`DELETE FROM analysis_graph_settings WHERE graph_id NOT IN (${placeholders})`).run(
+    ...ANALYSIS_GRAPH_IDS,
+  );
   const count = db.prepare("SELECT COUNT(*) AS count FROM analysis_graph_settings").get() as {
     count: number | bigint;
   };
