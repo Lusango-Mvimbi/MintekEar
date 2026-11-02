@@ -2,7 +2,7 @@
 
 Anonymous reviews of managers at one organisation. This copy is set up for Mintek. Reviews are about the manager, not the organisation. Nobody signs in, and a review does not store the writer's name.
 
-Example managers are included so the feed is not empty. They are fictional. They are marked Example in the app.
+Example managers are included so the feed, the division directory, and Analysis are not empty. They are fictional. They are marked Example in the app. Every Mintek division has at least one example manager. Scores run from 1 to 5, with a mix of strong managers and managers who need attention.
 
 ## Run
 
@@ -20,7 +20,7 @@ npm test
 npm run build
 ```
 
-Reviews are stored in `data/mintekear.db`. That file is created on first launch and is not committed. Delete it and restart to return to the example managers. Deleting it also removes reviews people have posted.
+Reviews are stored in `data/mintekear.db`. That file is created on first launch and is not committed. On startup the app inserts any missing example managers and reviews. Reviews people have posted are left in place, and a hidden review stays hidden. Delete `data/mintekear.db` and restart to drop posted reviews and load only the examples.
 
 ## Divisions and Human Resources
 

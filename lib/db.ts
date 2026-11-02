@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { alignHrAccess } from "./hr-seed";
-import { seedIfEmpty } from "./seed";
+import { ensureDemoSeed } from "./seed";
 
 const globalForDb = globalThis as unknown as { mintekearDb?: DatabaseSync };
 
@@ -84,7 +84,7 @@ export function getDb(): DatabaseSync {
     if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true });
     const db = new DatabaseSync(file);
     migrate(db);
-    if (process.env.MINTEKEAR_SKIP_SEED !== "1") seedIfEmpty(db);
+    if (process.env.MINTEKEAR_SKIP_SEED !== "1") ensureDemoSeed(db);
     globalForDb.mintekearDb = db;
   }
   return globalForDb.mintekearDb;

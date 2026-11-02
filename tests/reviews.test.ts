@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, test } from "node:test";
 import { formatScore, groupReviewsByYear } from "../lib/format";
+import { TAGS } from "../lib/tags";
 import { validateReview, type ReviewDraft } from "../lib/validation";
 
 function tempDb(): string {
@@ -25,27 +26,29 @@ test("example managers show the feed scores", async () => {
   const { db, queries } = await openDb(file, false);
   try {
     const feed = queries.listOrganisation();
-    assert.deepEqual(
-      feed.map((manager) => [
-        manager.name,
-        manager.average === null ? null : formatScore(manager.average),
-        manager.sample,
-        manager.divisionId,
-      ]),
-      [
-        ["Thabo Molefe", "1.0", true, "pyrometallurgy"],
-        ["Lerato Nkosi", "5.0", true, "hydrometallurgy"],
-        ["Ayesha Patel", "5.0", true, "analytical-chemistry"],
-        ["Johan Botha", "1.3", true, "mineral-processing"],
-        ["Sipho Dlamini", "3.5", true, "measurement-and-control"],
-      ],
-    );
-    assert.ok(feed[0].latest);
-    assert.ok(feed[3].latest);
-    assert.deepEqual(feed[0].latest.tags, ["micromanages", "takes-credit", "blames-team"]);
-    assert.deepEqual(feed[3].latest.tags, ["low-ego", "poor-communication", "plays-favourites"]);
+    const byName = new Map(feed.map((manager) => [manager.name, manager]));
+    const expectManager = (name: string, score: string, divisionId: string) => {
+      const manager = byName.get(name);
+      assert.ok(manager, name);
+      assert.equal(manager.average === null ? null : formatScore(manager.average), score);
+      assert.equal(manager.sample, true);
+      assert.equal(manager.divisionId, divisionId);
+      return manager;
+    };
+    const thabo = expectManager("Thabo Molefe", "1.0", "pyrometallurgy");
+    expectManager("Lerato Nkosi", "5.0", "hydrometallurgy");
+    expectManager("Ayesha Patel", "5.0", "analytical-chemistry");
+    const johan = expectManager("Johan Botha", "1.3", "mineral-processing");
+    expectManager("Sipho Dlamini", "3.5", "measurement-and-control");
+    assert.equal(byName.get("Karabo Mokoena")?.reviewCount, 0);
+    assert.equal(byName.get("Anele Dlamini")?.reviewCount, 0);
+    assert.equal(byName.get("Pumeza Nkosi")?.reviewCount, 0);
+    assert.ok(thabo.latest);
+    assert.ok(johan.latest);
+    assert.deepEqual(thabo.latest.tags, ["micromanages", "takes-credit", "blames-team"]);
+    assert.deepEqual(johan.latest.tags, ["low-ego", "poor-communication", "plays-favourites"]);
     assert.equal(queries.listFeed("analytical-chemistry", "laboratory").length, 1);
-    assert.equal(queries.listFeed("pyrometallurgy").length, 1);
+    assert.equal(queries.listFeed("pyrometallurgy").length, 5);
     assert.equal(queries.listFeed("pyrometallurgy", "laboratory").length, 0);
     assert.equal(
       queries.getManager("mgr-thabo", { divisionId: "hydrometallurgy", orgWide: false, includeBodies: false }),
@@ -70,8 +73,98 @@ test("example managers show the feed scores", async () => {
       /credit|team|work/i,
     );
     const report = queries.organisationReport();
-    assert.equal(report.divisions.find((division) => division.divisionId === "human-resources")?.reviewCount, 0);
-    assert.equal(report.divisions.find((division) => division.divisionId === "pyrometallurgy")?.reviewCount, 2);
+    assert.equal(report.reviewCount, 134);
+    assert.equal(feed.length, 48);
+    assert.equal(report.divisions.filter((division) => division.managerCount > 0).length, 19);
+    assert.equal(report.divisions.filter((division) => division.reviewCount > 0).length, 19);
+    assert.equal(report.divisions.find((division) => division.divisionId === "human-resources")?.reviewCount, 6);
+    assert.equal(report.divisions.find((division) => division.divisionId === "human-resources")?.managerCount, 3);
+    assert.equal(report.divisions.find((division) => division.divisionId === "pyrometallurgy")?.reviewCount, 12);
+    assert.deepEqual(
+      report.attention.map((division) => division.divisionId),
+      ["sheq-and-erm", "campus-and-maintenance", "ict", "sample-management"],
+    );
+    assert.deepEqual(
+      report.ratingMix.map((bucket) => bucket.count),
+      [17, 31, 25, 31, 30],
+    );
+    const usedTags = new Set(report.tagCounts.map((tag) => tag.id));
+    assert.deepEqual(
+      TAGS.map((tag) => tag.id).filter((id) => !usedTags.has(id)),
+      [],
+    );
+    for (const column of queries.reviewTableColumns()) {
+      assert.equal(/author|user|email|employee|staff|ip|agent|session|device|laptop|login|identity/i.test(column), false);
+    }
+  } finally {
+    db.resetDbForTests();
+    fs.rmSync(file, { force: true });
+  }
+});
+
+test("demo seed fills missing examples and leaves posted or hidden reviews alone", async () => {
+  const file = tempDb();
+  const { db, queries } = await openDb(file, true);
+  const { ensureDemoSeed } = await import("../lib/seed");
+  try {
+    db.getDb()
+      .prepare(
+        "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+      )
+      .run("mgr-posted", "Posted Manager", "Team Lead", "finance", "2026-10-01");
+
+    ensureDemoSeed(db.getDb());
+    assert.equal(queries.listOrganisation().length, 49);
+    const posted = queries.getManager("mgr-posted", {
+      divisionId: "finance",
+      orgWide: false,
+      includeBodies: false,
+    });
+    assert.equal(posted?.sample, false);
+    assert.equal(posted?.name, "Posted Manager");
+
+    const thabo = queries.getManager("mgr-thabo", {
+      divisionId: "pyrometallurgy",
+      orgWide: false,
+      includeBodies: true,
+    });
+    assert.ok(thabo);
+    const targetId = thabo.reviews[0]?.id;
+    assert.ok(targetId);
+    assert.equal(queries.setReviewHidden(targetId, true).ok, true);
+
+    const reviewCount = queries.organisationReport().reviewCount;
+    ensureDemoSeed(db.getDb());
+    assert.equal(queries.listOrganisation().length, 49);
+    assert.equal(queries.organisationReport().reviewCount, reviewCount);
+    const stillHidden = queries.getManager("mgr-thabo", {
+      divisionId: "human-resources",
+      orgWide: true,
+      includeBodies: true,
+    });
+    assert.equal(stillHidden?.reviews.find((item) => item.id === targetId)?.hidden, true);
+
+    db.getDb().prepare("DELETE FROM review_tags WHERE review_id LIKE 'rev-nomsa-%'").run();
+    db.getDb().prepare("DELETE FROM reviews WHERE manager_id = 'mgr-nomsa'").run();
+    db.getDb().prepare("DELETE FROM managers WHERE id = 'mgr-nomsa'").run();
+    assert.equal(
+      queries.getManager("mgr-nomsa", { divisionId: "pyrometallurgy", orgWide: false, includeBodies: false }),
+      null,
+    );
+    ensureDemoSeed(db.getDb());
+    const restored = queries.getManager("mgr-nomsa", {
+      divisionId: "pyrometallurgy",
+      orgWide: false,
+      includeBodies: true,
+    });
+    assert.equal(restored?.name, "Nomsa Mahlangu");
+    assert.equal(restored?.sample, true);
+    assert.equal(restored?.reviewCount, 4);
+    assert.equal(queries.getManager("mgr-posted", {
+      divisionId: "finance",
+      orgWide: false,
+      includeBodies: false,
+    })?.sample, false);
   } finally {
     db.resetDbForTests();
     fs.rmSync(file, { force: true });
