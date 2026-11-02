@@ -2,13 +2,16 @@ import { divisionName } from "./divisions";
 import { formatScore, scoreTone } from "./format";
 import type { OrganisationReport } from "./queries";
 import { displayTrait } from "./tags";
-import { renderBarChart, type BarChartSpec } from "./chart-png";
+import { renderBarChart, renderOverviewChart, type BarChartSpec, type OverviewSpec } from "./chart-png";
 
 const SCORE_FILL = {
   good: "#0f8a4b",
   mixed: "#c4841d",
   bad: "#d64545",
 } as const;
+
+const ACCENT = "#194d5c";
+const MUTED = "#5e828d";
 
 function scopeName(report: OrganisationReport): string | null {
   if (!report.scopeDivisionId) return null;
@@ -103,6 +106,43 @@ export function analysisChartSpecs(report: OrganisationReport): BarChartSpec[] {
   return [divisionScores, attention, traits];
 }
 
+/** Overview totals as three small cards. Not a score-mix chart. */
+export function overviewChartSpec(report: OrganisationReport): OverviewSpec {
+  const scoped = scopeName(report);
+  const average = report.average;
+  const attentionCount = report.attention.length;
+  return {
+    title: "Overview",
+    subtitle: scoped
+      ? `Visible reviews in ${scoped}. Hidden reviews are excluded.`
+      : "Visible reviews across Mintek. Hidden reviews are excluded.",
+    cards: [
+      {
+        label: "Reviews",
+        value: String(report.reviewCount),
+        caption: scoped ? `In ${scoped}` : "Across Mintek",
+        color: ACCENT,
+      },
+      {
+        label: "Average",
+        value: average === null ? "—" : formatScore(average),
+        caption: "Out of 5",
+        color: average === null ? MUTED : SCORE_FILL[scoreTone(average)],
+      },
+      {
+        label: "Needs attention",
+        value: String(attentionCount),
+        caption: scoped
+          ? attentionCount > 0
+            ? "Average under 2.5"
+            : "At or above 2.5"
+          : "Divisions under 2.5",
+        color: attentionCount > 0 ? SCORE_FILL.bad : SCORE_FILL.good,
+      },
+    ],
+  };
+}
+
 export type AnalysisChartPng = {
   title: string;
   png: Buffer;
@@ -110,9 +150,15 @@ export type AnalysisChartPng = {
   height: number;
 };
 
+const DISPLAY_WIDTH = 960;
+
+function present(image: { png: Buffer; width: number; height: number }, title: string): AnalysisChartPng {
+  const height = Math.max(1, Math.round(image.height * (DISPLAY_WIDTH / image.width)));
+  return { title, png: image.png, width: DISPLAY_WIDTH, height };
+}
+
 export function renderAnalysisCharts(report: OrganisationReport): AnalysisChartPng[] {
-  return analysisChartSpecs(report).map((spec) => {
-    const image = renderBarChart(spec);
-    return { title: spec.title, png: image.png, width: image.width, height: image.height };
-  });
+  const overview = present(renderOverviewChart(overviewChartSpec(report)), "Overview");
+  const bars = analysisChartSpecs(report).map((spec) => present(renderBarChart(spec), spec.title));
+  return [overview, ...bars];
 }

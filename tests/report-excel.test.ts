@@ -100,9 +100,25 @@ function sheet(workbook: ExcelWorkbook, name: string): Worksheet {
   return found;
 }
 
+function tableHeaderRow(worksheet: Worksheet): number {
+  let found = 0;
+  worksheet.eachRow((row, rowNumber) => {
+    const values: string[] = [];
+    row.eachCell((cell) => {
+      values.push(String(cell.value ?? ""));
+    });
+    const has = (label: string) => values.includes(label);
+    if (has("Comment") && has("Hidden")) found = rowNumber;
+    if (has("Department") && has("Managers") && has("Average")) found = rowNumber;
+    if (has("Manager") && has("Title") && has("Average") && !has("Comment")) found = rowNumber;
+  });
+  assert.ok(found > 0, `header row on ${worksheet.name}`);
+  return found;
+}
+
 function headers(worksheet: Worksheet): string[] {
   const values: string[] = [];
-  worksheet.getRow(1).eachCell((cell) => {
+  worksheet.getRow(tableHeaderRow(worksheet)).eachCell((cell) => {
     values.push(String(cell.value ?? ""));
   });
   return values;
@@ -112,13 +128,24 @@ function column(worksheet: Worksheet, header: string): string[] {
   const names = headers(worksheet);
   const index = names.indexOf(header);
   assert.notEqual(index, -1, header);
+  const headerRow = tableHeaderRow(worksheet);
   const values: string[] = [];
   worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
+    if (rowNumber <= headerRow) return;
     const cell = row.getCell(index + 1).value;
     values.push(cell == null ? "" : String(cell));
   });
   return values;
+}
+
+function sheetText(worksheet: Worksheet): string {
+  let text = "";
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      text += `${String(cell.value ?? "")}\n`;
+    });
+  });
+  return text;
 }
 
 function summaryValue(worksheet: Worksheet, item: string): string {
@@ -140,13 +167,9 @@ const forbiddenHeader = /reviewer|author|ip address|device|staff number|email|us
 function assertGraphSheet(workbook: ExcelWorkbook, department: string) {
   const graphs = sheet(workbook, "Graphs");
   const images = graphs.getImages();
-  assert.equal(images.length, 3, "Graphs sheet embeds three chart pictures");
-  let text = "";
-  graphs.eachRow((row) => {
-    row.eachCell((cell) => {
-      text += `${String(cell.value ?? "")}\n`;
-    });
-  });
+  assert.equal(images.length, 4, "Graphs sheet embeds four chart pictures");
+  const text = sheetText(graphs);
+  assert.match(text, /Overview/);
   assert.match(text, /Division scores/);
   assert.match(text, /Needs attention/);
   assert.match(text, /Trait frequency/);
@@ -218,6 +241,12 @@ describe("analysis excel export", { concurrency: 1 }, () => {
         if (String(row.getCell(1).value ?? "") === "Anonymity") anonymityRow = true;
       });
       assert.equal(anonymityRow, false);
+      const summaryText = sheetText(summary);
+      assert.match(summaryText, /MintekEar/);
+      assert.match(summaryText, /Africa\/Johannesburg/);
+      assert.equal(/score mix/i.test(summaryText), false);
+      assert.equal(summaryText.includes("Score 1"), false);
+      assert.equal(summary.pageSetup.orientation, "landscape");
 
       const reviews = sheet(workbook, "Reviews");
       const reviewHeaders = headers(reviews);
@@ -232,9 +261,15 @@ describe("analysis excel export", { concurrency: 1 }, () => {
         "Hidden",
       ]);
       for (const header of reviewHeaders) assert.equal(forbiddenHeader.test(header), false);
-      for (const name of ["Summary", "Divisions", "Managers"]) {
+      for (const name of ["Divisions", "Managers", "Reviews"]) {
         for (const header of headers(sheet(workbook, name))) assert.equal(forbiddenHeader.test(header), false);
       }
+      const headerCell = reviews.getRow(tableHeaderRow(reviews)).getCell(1);
+      assert.equal(headerCell.font?.bold, true);
+      assert.equal(headerCell.font?.name, "Calibri");
+      assert.equal(reviews.views[0]?.state, "frozen");
+      assert.ok((reviews.views[0]?.ySplit ?? 0) >= 4);
+      assert.ok(reviews.autoFilter);
 
       const comments = column(reviews, "Comment");
       assert.ok(comments.includes("Visible finance note about plans."));

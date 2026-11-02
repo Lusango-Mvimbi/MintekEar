@@ -5,9 +5,8 @@ import path from "node:path";
 import { describe, test } from "node:test";
 import { analysisChartGridClass, showManagersByDivision } from "../lib/analysis-graphs";
 import { analysisChartSpecs } from "../lib/analysis-chart-images";
-import { missingGlyphs, pngContainsColor, pngDimensions, renderBarChart } from "../lib/chart-png";
-import { DIVISIONS, parseDivisionParam } from "../lib/divisions";
-import { TAGS } from "../lib/tags";
+import { pngContainsColor, pngDimensions, renderBarChart, renderOverviewChart } from "../lib/chart-png";
+import { parseDivisionParam } from "../lib/divisions";
 
 function tempDb(): string {
   return path.join(
@@ -262,10 +261,6 @@ test("all divisions hides manager cards, and chart panels share one row on a wid
 });
 
 test("chart pictures use the analysis series and a real PNG", () => {
-  const names = DIVISIONS.map((division) => division.name).join(" ");
-  const traits = TAGS.map((tag) => tag.label).join(" ");
-  assert.deepEqual(missingGlyphs(`${names} ${traits} 0123456789. ·`), []);
-
   const image = renderBarChart({
     title: "Division scores",
     subtitle: "Average anonymous score by division.",
@@ -282,8 +277,23 @@ test("chart pictures use the analysis series and a real PNG", () => {
   assert.equal(pngDimensions(image.png).height, image.height);
   assert.equal(pngContainsColor(image.png, "#0f8a4b"), true);
   assert.equal(pngContainsColor(image.png, "#d64545"), true);
+  assert.equal(pngContainsColor(image.png, "#194d5c"), true);
   assert.ok(image.width >= 900);
   assert.ok(image.height > 80);
+
+  const overview = renderOverviewChart({
+    title: "Overview",
+    subtitle: "Visible reviews in Finance.",
+    cards: [
+      { label: "Reviews", value: "1", caption: "In Finance", color: "#194d5c" },
+      { label: "Average", value: "2.0", caption: "Out of 5", color: "#d64545" },
+      { label: "Needs attention", value: "1", caption: "Average under 2.5", color: "#d64545" },
+    ],
+  });
+  assert.equal(overview.png.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  assert.equal(pngDimensions(overview.png).width, overview.width);
+  assert.equal(pngContainsColor(overview.png, "#194d5c"), true);
+  assert.equal(pngContainsColor(overview.png, "#d64545"), true);
 });
 
 test("analysis division param keeps known division ids only", () => {

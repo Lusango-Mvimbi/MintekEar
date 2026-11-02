@@ -1,11 +1,13 @@
-import { deflateSync, inflateSync } from "node:zlib";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { inflateSync } from "node:zlib";
 
 /**
- * Small PNG bar charts for the Analysis Excel workbook.
- * Drawn with a built-in bitmap font and Node's zlib. No browser and no native canvas.
+ * Analysis charts as SVG, rasterised with resvg and the bundled Inter font.
+ * The pictures are real drawings. Score mix is not one of them.
  */
-
-export type Rgb = readonly [number, number, number];
 
 export type ChartBar = {
   label: string;
@@ -26,294 +28,210 @@ export type BarChartSpec = {
   axisHigh?: string;
 };
 
-const WHITE: Rgb = [255, 255, 255];
-const INK: Rgb = [0, 19, 29];
-const MUTED: Rgb = [94, 130, 141];
-const ACCENT: Rgb = [25, 77, 92];
-const PAPER: Rgb = [243, 246, 247];
-const LINE: Rgb = [227, 234, 235];
-const GOOD: Rgb = [15, 138, 75];
-const GOOD_BG: Rgb = [231, 246, 238];
-
-function g(rows: readonly [string, string, string, string, string, string, string]): string {
-  for (const row of rows) {
-    if (!/^[01]{5}$/.test(row)) throw new Error(`Bad glyph row: ${row}`);
-  }
-  return rows.join("");
-}
-
-/** 5×7 glyphs, seven rows of five bits, left to right. */
-const GLYPHS: Record<string, string> = {
-  " ": g(["00000", "00000", "00000", "00000", "00000", "00000", "00000"]),
-  "0": g(["01110", "10001", "10011", "10101", "11001", "10001", "01110"]),
-  "1": g(["00100", "01100", "00100", "00100", "00100", "00100", "01110"]),
-  "2": g(["01110", "10001", "00001", "00010", "00100", "01000", "11111"]),
-  "3": g(["11110", "00001", "00001", "01110", "00001", "00001", "11110"]),
-  "4": g(["00010", "00110", "01010", "10010", "11111", "00010", "00010"]),
-  "5": g(["11111", "10000", "10000", "11110", "00001", "00001", "11110"]),
-  "6": g(["01110", "10000", "10000", "11110", "10001", "10001", "01110"]),
-  "7": g(["11111", "00001", "00010", "00100", "01000", "01000", "01000"]),
-  "8": g(["01110", "10001", "10001", "01110", "10001", "10001", "01110"]),
-  "9": g(["01110", "10001", "10001", "01111", "00001", "00001", "01110"]),
-  A: g(["01110", "10001", "10001", "11111", "10001", "10001", "10001"]),
-  B: g(["11110", "10001", "10001", "11110", "10001", "10001", "11110"]),
-  C: g(["01110", "10001", "10000", "10000", "10000", "10001", "01110"]),
-  D: g(["11110", "10001", "10001", "10001", "10001", "10001", "11110"]),
-  E: g(["11111", "10000", "10000", "11110", "10000", "10000", "11111"]),
-  F: g(["11111", "10000", "10000", "11110", "10000", "10000", "10000"]),
-  G: g(["01110", "10001", "10000", "10111", "10001", "10001", "01111"]),
-  H: g(["10001", "10001", "10001", "11111", "10001", "10001", "10001"]),
-  I: g(["01110", "00100", "00100", "00100", "00100", "00100", "01110"]),
-  J: g(["00111", "00010", "00010", "00010", "00010", "10010", "01100"]),
-  K: g(["10001", "10010", "10100", "11000", "10100", "10010", "10001"]),
-  L: g(["10000", "10000", "10000", "10000", "10000", "10000", "11111"]),
-  M: g(["10001", "11011", "10101", "10101", "10001", "10001", "10001"]),
-  N: g(["10001", "11001", "10101", "10011", "10001", "10001", "10001"]),
-  O: g(["01110", "10001", "10001", "10001", "10001", "10001", "01110"]),
-  P: g(["11110", "10001", "10001", "11110", "10000", "10000", "10000"]),
-  Q: g(["01110", "10001", "10001", "10001", "10101", "10010", "01101"]),
-  R: g(["11110", "10001", "10001", "11110", "10100", "10010", "10001"]),
-  S: g(["01111", "10000", "10000", "01110", "00001", "00001", "11110"]),
-  T: g(["11111", "00100", "00100", "00100", "00100", "00100", "00100"]),
-  U: g(["10001", "10001", "10001", "10001", "10001", "10001", "01110"]),
-  V: g(["10001", "10001", "10001", "10001", "10001", "01010", "00100"]),
-  W: g(["10001", "10001", "10001", "10101", "10101", "10101", "01010"]),
-  X: g(["10001", "10001", "01010", "00100", "01010", "10001", "10001"]),
-  Y: g(["10001", "10001", "01010", "00100", "00100", "00100", "00100"]),
-  Z: g(["11111", "00001", "00010", "00100", "01000", "10000", "11111"]),
-  a: g(["00000", "00000", "01110", "00001", "01111", "10001", "01111"]),
-  b: g(["10000", "10000", "11110", "10001", "10001", "10001", "11110"]),
-  c: g(["00000", "00000", "01110", "10000", "10000", "10001", "01110"]),
-  d: g(["00001", "00001", "01111", "10001", "10001", "10001", "01111"]),
-  e: g(["00000", "00000", "01110", "10001", "11111", "10000", "01110"]),
-  f: g(["00110", "01001", "01000", "11100", "01000", "01000", "01000"]),
-  g: g(["00000", "01111", "10001", "10001", "01111", "00001", "01110"]),
-  h: g(["10000", "10000", "11110", "10001", "10001", "10001", "10001"]),
-  i: g(["00100", "00000", "01100", "00100", "00100", "00100", "01110"]),
-  j: g(["00010", "00000", "00110", "00010", "00010", "10010", "01100"]),
-  k: g(["10000", "10000", "10010", "10100", "11000", "10100", "10010"]),
-  l: g(["01100", "00100", "00100", "00100", "00100", "00100", "01110"]),
-  m: g(["00000", "00000", "11010", "10101", "10101", "10001", "10001"]),
-  n: g(["00000", "00000", "11110", "10001", "10001", "10001", "10001"]),
-  o: g(["00000", "00000", "01110", "10001", "10001", "10001", "01110"]),
-  p: g(["00000", "11110", "10001", "10001", "11110", "10000", "10000"]),
-  q: g(["00000", "01111", "10001", "10001", "01111", "00001", "00001"]),
-  r: g(["00000", "00000", "10110", "11001", "10000", "10000", "10000"]),
-  s: g(["00000", "00000", "01111", "10000", "01110", "00001", "11110"]),
-  t: g(["01000", "01000", "11100", "01000", "01000", "01001", "00110"]),
-  u: g(["00000", "00000", "10001", "10001", "10001", "10011", "01101"]),
-  v: g(["00000", "00000", "10001", "10001", "10001", "01010", "00100"]),
-  w: g(["00000", "00000", "10001", "10101", "10101", "10101", "01010"]),
-  x: g(["00000", "00000", "10001", "01010", "00100", "01010", "10001"]),
-  y: g(["00000", "10001", "10001", "01111", "00001", "00001", "01110"]),
-  z: g(["00000", "00000", "11111", "00010", "00100", "01000", "11111"]),
-  ".": g(["00000", "00000", "00000", "00000", "00000", "01100", "01100"]),
-  ",": g(["00000", "00000", "00000", "00000", "00100", "00100", "01000"]),
-  "-": g(["00000", "00000", "00000", "11111", "00000", "00000", "00000"]),
-  "&": g(["01100", "10010", "10100", "01000", "10101", "10010", "01101"]),
-  "'": g(["00100", "00100", "01000", "00000", "00000", "00000", "00000"]),
-  "/": g(["00001", "00010", "00010", "00100", "01000", "01000", "10000"]),
-  ":": g(["00000", "01100", "01100", "00000", "01100", "01100", "00000"]),
-  "+": g(["00000", "00100", "00100", "11111", "00100", "00100", "00000"]),
-  "(": g(["00010", "00100", "01000", "01000", "01000", "00100", "00010"]),
-  ")": g(["01000", "00100", "00010", "00010", "00010", "00100", "01000"]),
-  "?": g(["01110", "10001", "00001", "00010", "00100", "00000", "00100"]),
-  "·": g(["00000", "00000", "00000", "00100", "00000", "00000", "00000"]),
+export type OverviewCard = {
+  label: string;
+  value: string;
+  caption: string;
+  /** Accent for the card rule and the figure. */
+  color: string;
 };
 
-const ADVANCE_UNITS = 6;
+export type OverviewSpec = {
+  title: string;
+  subtitle: string;
+  cards: OverviewCard[];
+};
 
-export function missingGlyphs(text: string): string[] {
-  const missing: string[] = [];
-  for (const ch of text) {
-    if (!GLYPHS[ch] && !missing.includes(ch)) missing.push(ch);
+const require = createRequire(import.meta.url);
+const { Resvg } = require("@resvg/resvg-js") as typeof import("@resvg/resvg-js");
+
+const WIDTH = 1200;
+const PAD = 40;
+const ZOOM = 2;
+
+const INK = "#00131d";
+const MUTED = "#5e828d";
+const ACCENT = "#194d5c";
+const BRAND = "#d22d20";
+const PAPER = "#f3f6f7";
+const LINE = "#e3eaeb";
+const WHITE = "#ffffff";
+const GOOD = "#0f8a4b";
+const GOOD_BG = "#e7f6ee";
+
+let regularFont = "";
+let boldFont = "";
+
+function fontFile(file: string): string {
+  const candidates = [
+    path.join(process.cwd(), "assets", "fonts", file),
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "assets", "fonts", file),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
   }
-  return missing;
+  throw new Error(`Chart font is missing: assets/fonts/${file}`);
 }
 
-function parseHex(hex: string): Rgb {
-  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!match) return INK;
-  const value = Number.parseInt(match[1], 16);
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+function fonts(): { regular: string; bold: string } {
+  if (!regularFont) regularFont = fontFile("Inter-Regular.ttf");
+  if (!boldFont) boldFont = fontFile("Inter-Bold.ttf");
+  return { regular: regularFont, bold: boldFont };
 }
 
-function advance(scale: number): number {
-  return ADVANCE_UNITS * scale;
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-function measure(text: string, scale: number): number {
-  if (text.length === 0) return 0;
-  return text.length * advance(scale) - scale;
-}
-
-function fit(text: string, maxWidth: number, scale: number): string {
-  if (measure(text, scale) <= maxWidth) return text;
-  const ellipsis = "..";
-  let kept = text;
-  while (kept.length > 0 && measure(`${kept}${ellipsis}`, scale) > maxWidth) {
-    kept = kept.slice(0, -1);
-  }
-  return kept.length > 0 ? `${kept}${ellipsis}` : ellipsis;
-}
-
-function wrap(text: string, maxWidth: number, scale: number, maxLines = 2): string[] {
+function wrapText(text: string, maxChars: number, maxLines = 3): string[] {
   const words = text.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
   const lines: string[] = [];
   let current = "";
   for (const word of words) {
-    const piece = measure(word, scale) <= maxWidth ? word : fit(word, maxWidth, scale);
-    const next = current ? `${current} ${piece}` : piece;
-    if (measure(next, scale) <= maxWidth) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+    } else {
       current = next;
-      continue;
     }
-    if (current) lines.push(current);
-    current = piece;
   }
   if (current) lines.push(current);
   if (lines.length <= maxLines) return lines;
   const head = lines.slice(0, maxLines - 1);
-  const rest = fit(lines.slice(maxLines - 1).join(" "), maxWidth, scale);
+  let rest = lines.slice(maxLines - 1).join(" ");
+  if (rest.length > maxChars) rest = `${rest.slice(0, Math.max(0, maxChars - 1))}…`;
   return [...head, rest];
 }
 
-class Canvas {
-  readonly width: number;
-  readonly height: number;
-  private readonly pixels: Uint8Array;
+function text(
+  x: number,
+  y: number,
+  value: string,
+  options: { size: number; fill: string; weight?: number; anchor?: "start" | "end" },
+): string {
+  const anchor = options.anchor ?? "start";
+  const weight = options.weight ?? 400;
+  return `<text x="${x}" y="${y}" font-family="Inter" font-size="${options.size}" font-weight="${weight}" fill="${options.fill}" text-anchor="${anchor}" dominant-baseline="hanging">${escapeXml(value)}</text>`;
+}
 
-  constructor(width: number, height: number) {
-    this.width = width;
-    this.height = height;
-    this.pixels = new Uint8Array(width * height * 3);
-    this.pixels.fill(255);
+function frame(height: number): string {
+  return `<rect width="${WIDTH}" height="${height}" fill="${WHITE}"/><rect width="${WIDTH}" height="6" fill="${ACCENT}"/><rect x="0.5" y="0.5" width="${WIDTH - 1}" height="${height - 1}" fill="none" stroke="${LINE}"/>`;
+}
+
+function raster(svg: string, logicalHeight: number): { png: Buffer; width: number; height: number } {
+  const { regular, bold } = fonts();
+  const resvg = new Resvg(svg, {
+    fitTo: { mode: "zoom", value: ZOOM },
+    font: {
+      fontFiles: [regular, bold],
+      loadSystemFonts: false,
+      defaultFontFamily: "Inter",
+    },
+    background: WHITE,
+  });
+  const rendered = resvg.render();
+  const png = Buffer.from(rendered.asPng());
+  return { png, width: rendered.width, height: rendered.height || logicalHeight * ZOOM };
+}
+
+function heading(title: string, subtitle: string, y: number): { svg: string; next: number } {
+  const titleLines = wrapText(title, 48, 2);
+  const subtitleLines = wrapText(subtitle, 92, 3);
+  const parts = [text(PAD, y, "MintekEar", { size: 13, fill: BRAND, weight: 700 })];
+  let cursor = y + 22;
+  for (const line of titleLines) {
+    parts.push(text(PAD, cursor, line, { size: 26, fill: ACCENT, weight: 700 }));
+    cursor += 34;
   }
-
-  fill(color: Rgb) {
-    for (let i = 0; i < this.pixels.length; i += 3) {
-      this.pixels[i] = color[0];
-      this.pixels[i + 1] = color[1];
-      this.pixels[i + 2] = color[2];
-    }
+  cursor += 2;
+  for (const line of subtitleLines) {
+    parts.push(text(PAD, cursor, line, { size: 15, fill: MUTED }));
+    cursor += 22;
   }
+  return { svg: parts.join(""), next: cursor + 8 };
+}
 
-  private plot(x: number, y: number, color: Rgb) {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
-    const index = (y * this.width + x) * 3;
-    this.pixels[index] = color[0];
-    this.pixels[index + 1] = color[1];
-    this.pixels[index + 2] = color[2];
-  }
+export function renderBarChart(spec: BarChartSpec): { png: Buffer; width: number; height: number } {
+  const trackX = PAD;
+  const trackW = WIDTH - PAD * 2;
+  const head = heading(spec.title, spec.subtitle, 28);
+  let cursor = head.next + 12;
+  const chunks: string[] = [head.svg];
 
-  rect(x: number, y: number, w: number, h: number, color: Rgb) {
-    const x0 = Math.max(0, Math.floor(x));
-    const y0 = Math.max(0, Math.floor(y));
-    const x1 = Math.min(this.width, Math.ceil(x + w));
-    const y1 = Math.min(this.height, Math.ceil(y + h));
-    for (let py = y0; py < y1; py += 1) {
-      for (let px = x0; px < x1; px += 1) this.plot(px, py, color);
-    }
-  }
-
-  roundRect(x: number, y: number, w: number, h: number, radius: number, color: Rgb) {
-    const width = Math.max(0, Math.floor(w));
-    const height = Math.max(0, Math.floor(h));
-    const r = Math.max(0, Math.min(Math.floor(radius), Math.floor(width / 2), Math.floor(height / 2)));
-    const x0 = Math.floor(x);
-    const y0 = Math.floor(y);
-    for (let py = 0; py < height; py += 1) {
-      for (let px = 0; px < width; px += 1) {
-        if (!inRound(px, py, width, height, r)) continue;
-        this.plot(x0 + px, y0 + py, color);
+  if (spec.bars.length === 0) {
+    const tone = spec.emptyTone === "good" ? GOOD : MUTED;
+    const background = spec.emptyTone === "good" ? GOOD_BG : PAPER;
+    const lines = wrapText(spec.empty, 80, 2);
+    const boxH = 28 + lines.length * 22;
+    chunks.push(`<rect x="${PAD}" y="${cursor}" width="${trackW}" height="${boxH}" rx="14" fill="${background}"/>`);
+    lines.forEach((line, index) => {
+      chunks.push(text(PAD + 18, cursor + 14 + index * 22, line, { size: 15, fill: tone, weight: 700 }));
+    });
+    cursor += boxH;
+  } else {
+    for (const bar of spec.bars) {
+      chunks.push(text(trackX, cursor, bar.label, { size: 15, fill: INK, weight: 700 }));
+      chunks.push(text(WIDTH - PAD, cursor, bar.valueLabel, { size: 15, fill: INK, weight: 700, anchor: "end" }));
+      const barY = cursor + 24;
+      const fraction = Math.min(1, Math.max(0, bar.fraction));
+      chunks.push(`<rect x="${trackX}" y="${barY}" width="${trackW}" height="12" rx="6" fill="${PAPER}"/>`);
+      if (fraction > 0) {
+        const fill = Math.min(trackW, Math.max(12, Math.round(trackW * fraction)));
+        const radius = Math.min(6, fill / 2);
+        chunks.push(
+          `<rect x="${trackX}" y="${barY}" width="${fill}" height="12" rx="${radius}" fill="${escapeXml(bar.color)}"/>`,
+        );
       }
+      cursor = barY + 28;
     }
-  }
-
-  text(x: number, y: number, text: string, color: Rgb, scale: number) {
-    let cursor = Math.floor(x);
-    const top = Math.floor(y);
-    for (const ch of text) {
-      const bits = GLYPHS[ch] ?? GLYPHS["?"];
-      for (let row = 0; row < 7; row += 1) {
-        for (let col = 0; col < 5; col += 1) {
-          if (bits[row * 5 + col] !== "1") continue;
-          this.rect(cursor + col * scale, top + row * scale, scale, scale, color);
-        }
+    if (spec.axisLow || spec.axisHigh) {
+      if (spec.axisLow) chunks.push(text(trackX, cursor, spec.axisLow, { size: 12, fill: MUTED, weight: 700 }));
+      if (spec.axisHigh) {
+        chunks.push(text(WIDTH - PAD, cursor, spec.axisHigh, { size: 12, fill: MUTED, weight: 700, anchor: "end" }));
       }
-      cursor += advance(scale);
+      cursor += 18;
     }
   }
 
-  png(): Buffer {
-    return encodePng(this.width, this.height, this.pixels);
-  }
+  const height = cursor + 28;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}">${frame(height)}${chunks.join("")}</svg>`;
+  return raster(svg, height);
 }
 
-function inRound(px: number, py: number, w: number, h: number, r: number): boolean {
-  if (r <= 0) return true;
-  let cx = -1;
-  let cy = -1;
-  if (px < r && py < r) {
-    cx = r - 1;
-    cy = r - 1;
-  } else if (px >= w - r && py < r) {
-    cx = w - r;
-    cy = r - 1;
-  } else if (px < r && py >= h - r) {
-    cx = r - 1;
-    cy = h - r;
-  } else if (px >= w - r && py >= h - r) {
-    cx = w - r;
-    cy = h - r;
-  }
-  if (cx < 0) return true;
-  const dx = px - cx;
-  const dy = py - cy;
-  return dx * dx + dy * dy <= r * r;
-}
+export function renderOverviewChart(spec: OverviewSpec): { png: Buffer; width: number; height: number } {
+  const head = heading(spec.title, spec.subtitle, 28);
+  const gap = 16;
+  const cards = spec.cards.slice(0, 3);
+  const cardW = (WIDTH - PAD * 2 - gap * Math.max(0, cards.length - 1)) / Math.max(1, cards.length);
+  const cardH = 168;
+  const cardY = head.next + 12;
+  const chunks = [head.svg];
 
-function crc32(buf: Buffer): number {
-  let crc = ~0;
-  for (let i = 0; i < buf.length; i += 1) {
-    crc ^= buf[i];
-    for (let bit = 0; bit < 8; bit += 1) {
-      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
-    }
-  }
-  return ~crc >>> 0;
-}
+  cards.forEach((card, index) => {
+    const x = PAD + index * (cardW + gap);
+    const clip = `card${index}`;
+    chunks.push(
+      `<clipPath id="${clip}"><rect x="${x}" y="${cardY}" width="${cardW}" height="${cardH}" rx="16"/></clipPath>`,
+      `<g clip-path="url(#${clip})">`,
+      `<rect x="${x}" y="${cardY}" width="${cardW}" height="${cardH}" fill="${WHITE}"/>`,
+      `<rect x="${x}" y="${cardY}" width="${cardW}" height="6" fill="${escapeXml(card.color)}"/>`,
+      text(x + 22, cardY + 24, card.label.toUpperCase(), { size: 12, fill: MUTED, weight: 700 }),
+      text(x + 22, cardY + 52, card.value, { size: 42, fill: card.color, weight: 700 }),
+      text(x + 22, cardY + 118, card.caption, { size: 14, fill: MUTED }),
+      `</g>`,
+      `<rect x="${x}" y="${cardY}" width="${cardW}" height="${cardH}" rx="16" fill="none" stroke="${LINE}"/>`,
+    );
+  });
 
-function chunk(type: string, data: Buffer): Buffer {
-  const name = Buffer.from(type, "ascii");
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length, 0);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(Buffer.concat([name, data])), 0);
-  return Buffer.concat([length, name, data, crc]);
-}
-
-function encodePng(width: number, height: number, rgb: Uint8Array): Buffer {
-  const stride = width * 3;
-  const raw = Buffer.alloc((stride + 1) * height);
-  for (let y = 0; y < height; y += 1) {
-    const dest = y * (stride + 1);
-    raw[dest] = 0;
-    for (let x = 0; x < stride; x += 1) raw[dest + 1 + x] = rgb[y * stride + x];
-  }
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2;
-  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-  return Buffer.concat([
-    signature,
-    chunk("IHDR", ihdr),
-    chunk("IDAT", deflateSync(raw)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
+  const height = cardY + cardH + 32;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}">${frame(height)}${chunks.join("")}</svg>`;
+  return raster(svg, height);
 }
 
 export function pngDimensions(png: Buffer): { width: number; height: number } {
@@ -323,133 +241,72 @@ export function pngDimensions(png: Buffer): { width: number; height: number } {
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
 }
 
-function decodeRgb(png: Buffer): { width: number; height: number; rgb: Buffer } {
+function parseHex(hex: string): [number, number, number] {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) return [0, 0, 0];
+  const value = Number.parseInt(match[1], 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+function paeth(left: number, up: number, upLeft: number): number {
+  const estimate = left + up - upLeft;
+  const leftDelta = Math.abs(estimate - left);
+  const upDelta = Math.abs(estimate - up);
+  const diag = Math.abs(estimate - upLeft);
+  if (leftDelta <= upDelta && leftDelta <= diag) return left;
+  if (upDelta <= diag) return up;
+  return upLeft;
+}
+
+/** True when a flat fill of that colour survives in the PNG (edges may be antialiased). */
+export function pngContainsColor(png: Buffer, hex: string): boolean {
+  const [wantR, wantG, wantB] = parseHex(hex);
   const { width, height } = pngDimensions(png);
+  const colorType = png[25];
+  const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : 0;
+  if (channels === 0) return false;
+
   const idat: Buffer[] = [];
   let offset = 8;
   while (offset + 8 <= png.length) {
     const length = png.readUInt32BE(offset);
     const type = png.subarray(offset + 4, offset + 8).toString("ascii");
-    const data = png.subarray(offset + 8, offset + 8 + length);
-    if (type === "IDAT") idat.push(data);
+    if (type === "IDAT") idat.push(png.subarray(offset + 8, offset + 8 + length));
     offset += 12 + length;
     if (type === "IEND") break;
   }
   const raw = inflateSync(Buffer.concat(idat));
-  const stride = width * 3;
-  const rgb = Buffer.alloc(stride * height);
+  const stride = width * channels;
+  const rows: Buffer[] = [];
+  let cursor = 0;
   for (let y = 0; y < height; y += 1) {
-    const filter = raw[y * (stride + 1)];
-    if (filter !== 0) throw new Error("Unexpected PNG filter.");
-    raw.copy(rgb, y * stride, y * (stride + 1) + 1, y * (stride + 1) + 1 + stride);
+    const filter = raw[cursor];
+    const row = Buffer.from(raw.subarray(cursor + 1, cursor + 1 + stride));
+    const previous = rows[y - 1];
+    if (filter === 1 || filter === 3 || filter === 4) {
+      for (let i = 0; i < row.length; i += 1) {
+        const left = i >= channels ? row[i - channels] : 0;
+        if (filter === 1) row[i] = (row[i] + left) & 255;
+        else if (filter === 3) {
+          const up = previous ? previous[i] : 0;
+          row[i] = (row[i] + Math.floor((left + up) / 2)) & 255;
+        } else {
+          const up = previous ? previous[i] : 0;
+          const upLeft = previous && i >= channels ? previous[i - channels] : 0;
+          row[i] = (row[i] + paeth(left, up, upLeft)) & 255;
+        }
+      }
+    } else if (filter === 2 && previous) {
+      for (let i = 0; i < row.length; i += 1) row[i] = (row[i] + previous[i]) & 255;
+    }
+    rows.push(row);
+    cursor += stride + 1;
   }
-  return { width, height, rgb };
-}
 
-export function pngContainsColor(png: Buffer, hex: string): boolean {
-  const [r, g, b] = parseHex(hex);
-  const { rgb } = decodeRgb(png);
-  for (let i = 0; i < rgb.length; i += 3) {
-    if (rgb[i] === r && rgb[i + 1] === g && rgb[i + 2] === b) return true;
+  for (const row of rows) {
+    for (let i = 0; i < row.length; i += channels) {
+      if (row[i] === wantR && row[i + 1] === wantG && row[i + 2] === wantB) return true;
+    }
   }
   return false;
-}
-
-const CHART_WIDTH = 960;
-
-export function renderBarChart(spec: BarChartSpec): { png: Buffer; width: number; height: number } {
-  const scale = 2;
-  const titleScale = 3;
-  const pad = 28;
-  const lineGap = 4;
-  const bodyLine = 7 * scale + lineGap;
-  const titleLine = 7 * titleScale + 6;
-  const inner = CHART_WIDTH - pad * 2;
-
-  let valueW = 36;
-  for (const bar of spec.bars) valueW = Math.max(valueW, measure(bar.valueLabel, scale));
-  valueW += 6;
-  const minTrack = 180;
-  const gaps = 20;
-  let labelW = 280;
-  let trackW = inner - labelW - valueW - gaps;
-  if (trackW < minTrack) {
-    labelW = Math.max(150, inner - valueW - gaps - minTrack);
-    trackW = inner - labelW - valueW - gaps;
-  }
-
-  const titleLines = wrap(spec.title, inner, titleScale, 1);
-  const subtitleLines = wrap(spec.subtitle, inner, scale, 3);
-  const rows = spec.bars.map((bar) => {
-    const lines = wrap(bar.label, labelW, scale, 2);
-    const h = Math.max(16, lines.length * bodyLine);
-    return { ...bar, lines, h };
-  });
-
-  let height = pad + titleLines.length * titleLine + 6 + subtitleLines.length * bodyLine + 18;
-  if (rows.length === 0) height += 56;
-  else {
-    for (const row of rows) height += row.h + 12;
-    if (spec.axisLow || spec.axisHigh) height += bodyLine;
-  }
-  height += pad;
-
-  const canvas = new Canvas(CHART_WIDTH, height);
-  canvas.fill(WHITE);
-  canvas.rect(0, 0, CHART_WIDTH, 4, ACCENT);
-
-  let y = pad;
-  for (const line of titleLines) {
-    canvas.text(pad, y, line, ACCENT, titleScale);
-    y += titleLine;
-  }
-  y += 2;
-  for (const line of subtitleLines) {
-    canvas.text(pad, y, line, MUTED, scale);
-    y += bodyLine;
-  }
-  y += 14;
-
-  if (rows.length === 0) {
-    const tone = spec.emptyTone === "good" ? GOOD : MUTED;
-    const background = spec.emptyTone === "good" ? GOOD_BG : PAPER;
-    canvas.roundRect(pad, y, inner, 44, 12, background);
-    const lines = wrap(spec.empty, inner - 28, scale, 2);
-    const block = lines.length * bodyLine;
-    let textY = y + Math.max(6, Math.floor((44 - block) / 2));
-    for (const line of lines) {
-      canvas.text(pad + 14, textY, line, tone, scale);
-      textY += bodyLine;
-    }
-  } else {
-    const labelX = pad;
-    const trackX = pad + labelW + 10;
-    const valueX = trackX + trackW + 10;
-    for (const row of rows) {
-      let textY = y + Math.max(0, Math.floor((row.h - row.lines.length * bodyLine) / 2));
-      for (const line of row.lines) {
-        canvas.text(labelX, textY, line, INK, scale);
-        textY += bodyLine;
-      }
-      const barY = y + Math.max(0, Math.floor((row.h - 14) / 2));
-      canvas.roundRect(trackX, barY, trackW, 14, 7, PAPER);
-      const fraction = Math.min(1, Math.max(0, row.fraction));
-      if (fraction > 0) {
-        const fill = Math.min(trackW, Math.max(8, Math.round(trackW * fraction)));
-        canvas.roundRect(trackX, barY, fill, 14, 7, parseHex(row.color));
-      }
-      const valueWidth = measure(row.valueLabel, scale);
-      canvas.text(valueX + Math.max(0, valueW - valueWidth), y + Math.max(0, Math.floor((row.h - bodyLine) / 2)), row.valueLabel, INK, scale);
-      y += row.h + 12;
-    }
-    if (spec.axisLow) canvas.text(trackX, y, spec.axisLow, MUTED, scale);
-    if (spec.axisHigh) {
-      const highW = measure(spec.axisHigh, scale);
-      canvas.text(trackX + trackW - highW, y, spec.axisHigh, MUTED, scale);
-    }
-  }
-
-  canvas.rect(0, height - 1, CHART_WIDTH, 1, LINE);
-  const png = canvas.png();
-  return { png, width: CHART_WIDTH, height };
 }
