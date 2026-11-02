@@ -94,6 +94,7 @@ test("a review can only be posted for a manager already in that division", async
       body: "She gives the team the reason for a decision and she shares the credit.",
       tags: ["clear-communicator", "fair"],
       honeypot: "",
+      policyAccepted: true,
     };
     const valid = validateReview(draft);
     assert.equal(valid.ok, true);
@@ -107,7 +108,7 @@ test("a review can only be posted for a manager already in that division", async
     assert.equal(first.managerId, "mgr-naledi");
 
     const columns = queries.reviewTableColumns();
-    assert.deepEqual(columns, ["id", "manager_id", "rating", "body", "created_at"]);
+    assert.deepEqual(columns, ["id", "manager_id", "rating", "body", "created_at", "hidden"]);
     for (const column of columns) {
       assert.equal(/author|user|email|employee|staff|ip|agent|session|device|laptop|login|identity/i.test(column), false);
     }
@@ -121,6 +122,7 @@ test("a review can only be posted for a manager already in that division", async
     assert.ok(manager.average !== null);
     assert.equal(formatScore(manager.average), "5.0");
     assert.equal(manager.reviews[0].body, draft.body);
+    assert.equal(manager.reviews[0].hidden, false);
     assert.match(manager.reviews[0].createdAt, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(queries.listManagerOptions("pyrometallurgy").length, 1);
     assert.equal(
@@ -162,7 +164,9 @@ test("manager reviews stay newest first across years", async () => {
 
     const insert = db
       .getDb()
-      .prepare("INSERT INTO reviews (id, manager_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?)");
+      .prepare(
+        "INSERT INTO reviews (id, manager_id, rating, body, created_at, hidden) VALUES (?, ?, ?, ?, ?, 0)",
+      );
     insert.run("rev-old", "mgr-years", 2, "Older note from the previous year about the same team lead.", "2025-06-01");
     insert.run("rev-mid", "mgr-years", 3, "Mid-year note that should sit under the current year heading.", "2026-03-10");
     insert.run("rev-new", "mgr-years", 4, "Latest note for this manager that must appear at the top.", "2026-10-20");
@@ -187,6 +191,101 @@ test("manager reviews stay newest first across years", async () => {
         [2026, ["rev-new", "rev-mid"]],
         [2025, ["rev-old"]],
       ],
+    );
+  } finally {
+    db.resetDbForTests();
+    fs.rmSync(file, { force: true });
+  }
+});
+
+test("hiding a review removes it from public counts and feeds; restore brings it back", async () => {
+  const file = tempDb();
+  const { db, queries } = await openDb(file, true);
+  try {
+    db.getDb()
+      .prepare(
+        "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+      )
+      .run("mgr-policy", "Policy Manager", "Team Lead", "pyrometallurgy", "2026-01-01");
+
+    const first = validateReview({
+      managerId: "mgr-policy",
+      rating: 2,
+      body: "First note about decisions that stay with the team when something slips.",
+      tags: ["blames-team"],
+      honeypot: "",
+      policyAccepted: true,
+    });
+    const second = validateReview({
+      managerId: "mgr-policy",
+      rating: 4,
+      body: "Second note about clear plans and fair leave for people on the floor.",
+      tags: ["fair", "clear-communicator"],
+      honeypot: "",
+      policyAccepted: true,
+    });
+    assert.equal(first.ok, true);
+    assert.equal(second.ok, true);
+    if (!first.ok || !second.ok) return;
+
+    assert.equal(queries.insertReview(first.value, "pyrometallurgy").ok, true);
+    assert.equal(queries.insertReview(second.value, "pyrometallurgy").ok, true);
+
+    const publicAccess = { divisionId: "pyrometallurgy", orgWide: false, includeBodies: false };
+    const hrAccess = { divisionId: "human-resources", orgWide: true, includeBodies: true };
+
+    const before = queries.getManager("mgr-policy", publicAccess);
+    assert.ok(before);
+    assert.equal(before.reviewCount, 2);
+    assert.equal(before.reviews.length, 2);
+    assert.equal(queries.listFeed("pyrometallurgy")[0]?.reviewCount, 2);
+    assert.equal(queries.organisationReport().divisions.find((d) => d.divisionId === "pyrometallurgy")?.reviewCount, 2);
+    assert.ok(
+      (queries.organisationReport().divisions.find((d) => d.divisionId === "pyrometallurgy")?.tagCounts ?? []).some(
+        (tag) => tag.id === "blames-team" && tag.count === 1,
+      ),
+    );
+
+    const targetId = before.reviews.find((review) => review.rating === 2)?.id;
+    assert.ok(targetId);
+    const hidden = queries.setReviewHidden(targetId, true);
+    assert.equal(hidden.ok, true);
+
+    const publicAfterHide = queries.getManager("mgr-policy", publicAccess);
+    assert.ok(publicAfterHide);
+    assert.equal(publicAfterHide.reviewCount, 1);
+    assert.equal(publicAfterHide.reviews.length, 1);
+    assert.equal(publicAfterHide.reviews[0].rating, 4);
+    assert.equal(publicAfterHide.tagCounts.some((tag) => tag.id === "blames-team"), false);
+    assert.equal(queries.listFeed("pyrometallurgy")[0]?.reviewCount, 1);
+    assert.equal(formatScore(queries.listFeed("pyrometallurgy")[0]?.average ?? 0), "4.0");
+    assert.equal(queries.organisationReport().divisions.find((d) => d.divisionId === "pyrometallurgy")?.reviewCount, 1);
+    assert.equal(
+      queries.organisationReport().divisions.find((d) => d.divisionId === "pyrometallurgy")?.tagCounts.some(
+        (tag) => tag.id === "blames-team",
+      ),
+      false,
+    );
+
+    const hrAfterHide = queries.getManager("mgr-policy", hrAccess);
+    assert.ok(hrAfterHide);
+    assert.equal(hrAfterHide.reviewCount, 1);
+    assert.equal(hrAfterHide.reviews.length, 2);
+    assert.equal(hrAfterHide.reviews.filter((review) => review.hidden).length, 1);
+    assert.match(hrAfterHide.reviews.find((review) => review.hidden)?.body ?? "", /First note/);
+
+    const restored = queries.setReviewHidden(targetId, false);
+    assert.equal(restored.ok, true);
+    const publicAfterRestore = queries.getManager("mgr-policy", publicAccess);
+    assert.ok(publicAfterRestore);
+    assert.equal(publicAfterRestore.reviewCount, 2);
+    assert.equal(publicAfterRestore.reviews.length, 2);
+    assert.equal(queries.listFeed("pyrometallurgy")[0]?.reviewCount, 2);
+    assert.equal(queries.organisationReport().divisions.find((d) => d.divisionId === "pyrometallurgy")?.reviewCount, 2);
+    assert.ok(
+      (queries.organisationReport().divisions.find((d) => d.divisionId === "pyrometallurgy")?.tagCounts ?? []).some(
+        (tag) => tag.id === "blames-team" && tag.count === 1,
+      ),
     );
   } finally {
     db.resetDbForTests();

@@ -26,7 +26,8 @@ function migrate(db: DatabaseSync) {
       manager_id TEXT NOT NULL REFERENCES managers(id),
       rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
       body TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      hidden INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS review_tags (
       review_id TEXT NOT NULL REFERENCES reviews(id),
@@ -47,6 +48,11 @@ function migrate(db: DatabaseSync) {
   const managerColumns = db.prepare("PRAGMA table_info(managers)").all() as { name: string }[];
   if (!managerColumns.some((column) => column.name === "division")) {
     db.exec("ALTER TABLE managers ADD COLUMN division TEXT NOT NULL DEFAULT ''");
+  }
+
+  const reviewColumns = db.prepare("PRAGMA table_info(reviews)").all() as { name: string }[];
+  if (!reviewColumns.some((column) => column.name === "hidden")) {
+    db.exec("ALTER TABLE reviews ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0");
   }
 
   const placements: Record<string, string> = {

@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { submitReview, type SubmitState } from "@/app/actions";
 import { verdictLabel } from "@/lib/format";
+import { POLICY_ACCEPT_LABEL, POLICY_SHORT } from "@/lib/policy";
 import type { ManagerOption } from "@/lib/queries";
 import { TAGS } from "@/lib/tags";
 import { StarIcon } from "./icons";
@@ -27,6 +29,7 @@ export function ReviewForm({
   const [tags, setTags] = useState<string[]>([]);
   const [body, setBody] = useState("");
   const [tagNote, setTagNote] = useState("");
+  const [policyAccepted, setPolicyAccepted] = useState(false);
 
   function toggleTag(id: string) {
     setTags((current) => {
@@ -54,7 +57,7 @@ export function ReviewForm({
     .slice(0, needle ? 8 : 12);
 
   const bodyLength = body.trim().length;
-  const ready = Boolean(managerId) && rating >= 1 && bodyLength >= minBody;
+  const ready = Boolean(managerId) && rating >= 1 && bodyLength >= minBody && policyAccepted;
   const bodyHint =
     bodyLength === 0
       ? `Write at least ${minBody} characters.`
@@ -223,6 +226,33 @@ export function ReviewForm({
         </span>
       </label>
 
+      <section className="mt-8 rounded-2xl bg-paper px-4 py-4 ring-1 ring-line">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-bold">Review policy</h2>
+          <Link href="/policy" className="text-sm font-semibold text-accent">
+            Full policy
+          </Link>
+        </div>
+        <ul className="mt-3 space-y-2 text-sm leading-6 text-muted">
+          {POLICY_SHORT.map((point) => (
+            <li key={point} className="flex gap-2">
+              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-brand" aria-hidden />
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+        <label className="mt-4 flex items-start gap-3 text-sm font-medium text-ink">
+          <input
+            type="checkbox"
+            name="policyAccepted"
+            checked={policyAccepted}
+            onChange={(event) => setPolicyAccepted(event.target.checked)}
+            className="mt-1 size-4 accent-[var(--brand)]"
+          />
+          <span>{POLICY_ACCEPT_LABEL}</span>
+        </label>
+      </section>
+
       <div className="sr-only" aria-hidden="true">
         <label>
           Company website
@@ -238,7 +268,9 @@ export function ReviewForm({
         {pending ? "Posting…" : "Post anonymously"}
       </button>
       {!ready ? (
-        <p className="mt-2 text-xs text-muted">Choose a manager, a score, and at least {minBody} characters to post.</p>
+        <p className="mt-2 text-xs text-muted">
+          Choose a manager, a score, at least {minBody} characters, and accept the review policy to post.
+        </p>
       ) : null}
     </form>
   );

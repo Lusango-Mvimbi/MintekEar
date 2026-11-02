@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getHrStaff, updateHrAccess } from "@/lib/access";
 import { getViewer, previewStaffCookieName } from "@/lib/directory";
 import { divisionById } from "@/lib/divisions";
-import { insertReview } from "@/lib/queries";
+import { insertReview, setReviewHidden } from "@/lib/queries";
 import { validateReview, type ReviewDraft } from "@/lib/validation";
 
 export type SubmitState = { error?: string };
@@ -19,6 +19,7 @@ function draftFromForm(formData: FormData): ReviewDraft {
     body: String(formData.get("body") ?? ""),
     tags: formData.getAll("tags").filter((tag): tag is string => typeof tag === "string"),
     honeypot: String(formData.get("company_website") ?? ""),
+    policyAccepted: formData.get("policyAccepted") === "on",
   };
 }
 
@@ -96,6 +97,21 @@ export async function previewPersona(formData: FormData) {
   jar.set("mintekear_division", "human-resources", cookieOpts);
   jar.set(previewStaffCookieName(), staffId, cookieOpts);
   redirect("/");
+}
+
+export async function moderateReview(formData: FormData) {
+  const viewer = await getViewer();
+  if (!viewer.canReadComments) {
+    return;
+  }
+  const reviewId = String(formData.get("reviewId") ?? "");
+  const hide = String(formData.get("action") ?? "") === "hide";
+  const result = setReviewHidden(reviewId, hide);
+  if (!result.ok) redirect("/");
+  revalidatePath("/");
+  revalidatePath("/report");
+  revalidatePath(`/managers/${result.managerId}`);
+  redirect(`/managers/${result.managerId}`);
 }
 
 export async function saveHrAccess(formData: FormData) {

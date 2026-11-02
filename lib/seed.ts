@@ -120,7 +120,7 @@ export function seedIfEmpty(db: DatabaseSync) {
     "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 1, ?)",
   );
   const insertReview = db.prepare(
-    "INSERT INTO reviews (id, manager_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?)",
+    "INSERT INTO reviews (id, manager_id, rating, body, created_at, hidden) VALUES (?, ?, ?, ?, ?, 0)",
   );
   const insertTag = db.prepare("INSERT INTO review_tags (review_id, tag) VALUES (?, ?)");
 

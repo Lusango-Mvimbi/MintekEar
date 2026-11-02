@@ -9,6 +9,7 @@ function draft(overrides: Partial<ReviewDraft> = {}): ReviewDraft {
     body: "She shares credit and the plan for the week is clear.",
     tags: ["fair", "clear-communicator"],
     honeypot: "",
+    policyAccepted: true,
     ...overrides,
   };
 }
@@ -40,4 +41,10 @@ test("treats a filled honeypot as spam", () => {
   const result = validateReview(draft({ honeypot: "https://spam.example" }));
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.spam, true);
+});
+
+test("rejects a review when the policy is not accepted", () => {
+  const result = validateReview(draft({ policyAccepted: false }));
+  assert.equal(result.ok, false);
+  if (!result.ok && !result.spam) assert.match(result.error, /policy/);
 });

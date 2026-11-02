@@ -30,9 +30,15 @@ Until the employee database is connected, the header has a division preview so t
 
 Employees see scores and traits for managers in their own division. They do not see the written comments. An administrator chooses which people in Human Resources may read comments, open Analysis, and download / print the report. Other HR colleagues get the same access as other employees. The Access page is at `/admin`.
 
+## Review policy and moderation
+
+Posting a review requires accepting the review policy (see `/policy`). The form checkbox must be on before the server accepts the post.
+
+Selected HR people who may read comments can hide a review that breaks the policy, or restore it later. A hidden review drops out of public scores, trait counts, feeds, and Analysis. Hiding does not reveal who wrote it — there is no author on the review row.
+
 ## What a review stores
 
-A review row has the manager, the score, the words, the traits, and the calendar day in Johannesburg. It does not store a clock time, a person, a staff number, an IP address, or a computer. Do not add request logging that keeps those details for the review route.
+A review row has the manager, the score, the words, the traits, the calendar day in Johannesburg, and whether HR has hidden it. It does not store a clock time, a person, a staff number, an IP address, or a computer. Do not add request logging that keeps those details for the review route.
 
 ## Set up for another company
 

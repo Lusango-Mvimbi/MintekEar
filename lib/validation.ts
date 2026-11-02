@@ -8,6 +8,7 @@ export type ReviewDraft = {
   body: string;
   tags: string[];
   honeypot: string;
+  policyAccepted: boolean;
 };
 
 export type ValidReview = {
@@ -32,6 +33,10 @@ function cleanBody(value: string): string {
 
 export function validateReview(draft: ReviewDraft): ValidationResult {
   if (draft.honeypot.trim()) return { ok: false, spam: true };
+
+  if (!draft.policyAccepted) {
+    return { ok: false, error: "Confirm you have read the review policy before posting." };
+  }
 
   if (!Number.isInteger(draft.rating) || draft.rating < 1 || draft.rating > 5) {
     return { ok: false, error: "Choose a score from 1 to 5." };

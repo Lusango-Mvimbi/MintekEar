@@ -24,6 +24,7 @@ export type ReviewItem = {
   body: string;
   createdAt: string;
   tags: string[];
+  hidden: boolean;
 };
 
 export type ManagerSummary = {
@@ -132,12 +133,12 @@ function listManagers(divisionId: string | null, query: string, includeBodies: b
            m.title,
            m.division,
            m.sample,
-           (SELECT AVG(rating) FROM reviews r WHERE r.manager_id = m.id) AS average,
-           (SELECT COUNT(*) FROM reviews r WHERE r.manager_id = m.id) AS review_count,
-           (SELECT MAX(created_at) FROM reviews r WHERE r.manager_id = m.id) AS latest_at,
+           (SELECT AVG(rating) FROM reviews r WHERE r.manager_id = m.id AND r.hidden = 0) AS average,
+           (SELECT COUNT(*) FROM reviews r WHERE r.manager_id = m.id AND r.hidden = 0) AS review_count,
+           (SELECT MAX(created_at) FROM reviews r WHERE r.manager_id = m.id AND r.hidden = 0) AS latest_at,
            (
              SELECT id FROM reviews r
-             WHERE r.manager_id = m.id
+             WHERE r.manager_id = m.id AND r.hidden = 0
              ORDER BY created_at DESC, id DESC
              LIMIT 1
            ) AS latest_id
@@ -162,7 +163,7 @@ function listManagers(divisionId: string | null, query: string, includeBodies: b
   const reviewRows = latestIds.length
     ? getDb()
         .prepare(
-          `SELECT id, rating, body, created_at FROM reviews WHERE id IN (${latestIds.map(() => "?").join(", ")})`,
+          `SELECT id, rating, body, created_at, hidden FROM reviews WHERE id IN (${latestIds.map(() => "?").join(", ")})`,
         )
         .all(...latestIds)
     : [];
@@ -174,6 +175,7 @@ function listManagers(divisionId: string | null, query: string, includeBodies: b
         rating: num(row.rating),
         body: text(row.body),
         createdAt: text(row.created_at),
+        hidden: num(row.hidden) === 1,
       },
     ]),
   );
@@ -198,6 +200,7 @@ function listManagers(divisionId: string | null, query: string, includeBodies: b
             body: includeBodies ? latest.body : "",
             createdAt: latest.createdAt,
             tags: tags.get(latestId) ?? [],
+            hidden: latest.hidden,
           }
         : null,
     };
@@ -221,8 +224,8 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
          m.title,
          m.division,
          m.sample,
-         (SELECT AVG(rating) FROM reviews r WHERE r.manager_id = m.id) AS average,
-         (SELECT COUNT(*) FROM reviews r WHERE r.manager_id = m.id) AS review_count
+         (SELECT AVG(rating) FROM reviews r WHERE r.manager_id = m.id AND r.hidden = 0) AS average,
+         (SELECT COUNT(*) FROM reviews r WHERE r.manager_id = m.id AND r.hidden = 0) AS review_count
        FROM managers m
        WHERE m.id = ?`,
     )
@@ -233,10 +236,15 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
 
   const reviewRows = getDb()
     .prepare(
-      `SELECT id, rating, body, created_at
-       FROM reviews
-       WHERE manager_id = ?
-       ORDER BY created_at DESC, id DESC`,
+      access.includeBodies
+        ? `SELECT id, rating, body, created_at, hidden
+           FROM reviews
+           WHERE manager_id = ?
+           ORDER BY hidden ASC, created_at DESC, id DESC`
+        : `SELECT id, rating, body, created_at, hidden
+           FROM reviews
+           WHERE manager_id = ? AND hidden = 0
+           ORDER BY created_at DESC, id DESC`,
     )
     .all(id);
   const reviewIds = reviewRows.map((review) => text(review.id));
@@ -249,22 +257,25 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
       body: access.includeBodies ? text(review.body) : "",
       createdAt: text(review.created_at),
       tags: tags.get(reviewId) ?? [],
+      hidden: num(review.hidden) === 1,
     };
   });
 
+  const visible = reviews.filter((review) => !review.hidden);
   const counts = new Map<string, number>();
-  for (const review of reviews) {
+  for (const review of visible) {
     for (const tag of review.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
   }
 
+  const reviewCount = num(row.review_count);
   return {
     id: text(row.id),
     name: text(row.name),
     title: text(row.title),
     divisionId,
     sample: num(row.sample) === 1,
-    average: reviews.length ? num(row.average) : null,
-    reviewCount: num(row.review_count),
+    average: reviewCount ? num(row.average) : null,
+    reviewCount,
     tagCounts: sortTagIds([...counts.keys()]).map((tagId) => ({
       id: tagId,
       count: counts.get(tagId) ?? 0,
@@ -288,6 +299,7 @@ export function organisationReport(): OrganisationReport {
        FROM review_tags t
        JOIN reviews r ON r.id = t.review_id
        JOIN managers m ON m.id = r.manager_id
+       WHERE r.hidden = 0
        GROUP BY m.division, t.tag`,
     )
     .all();
@@ -361,6 +373,18 @@ function scoreNeedsAttention(average: number): boolean {
   return average < 2.5;
 }
 
+export function setReviewHidden(
+  reviewId: string,
+  hidden: boolean,
+): { ok: true; managerId: string } | { ok: false; error: string } {
+  const row = getDb().prepare("SELECT id, manager_id FROM reviews WHERE id = ?").get(reviewId);
+  if (!row) return { ok: false, error: "That review was not found." };
+  getDb()
+    .prepare("UPDATE reviews SET hidden = ? WHERE id = ?")
+    .run(hidden ? 1 : 0, reviewId);
+  return { ok: true, managerId: text(row.manager_id) };
+}
+
 export function insertReview(review: ValidReview, divisionId: string): InsertResult {
   const db = getDb();
   const today = reviewDate();
@@ -370,7 +394,7 @@ export function insertReview(review: ValidReview, divisionId: string): InsertRes
   if (!existing) return { ok: false, error: "Search for a manager in your division." };
 
   const duplicate = db
-    .prepare("SELECT id FROM reviews WHERE manager_id = ? AND body = ?")
+    .prepare("SELECT id FROM reviews WHERE manager_id = ? AND body = ? AND hidden = 0")
     .get(review.managerId, review.body);
   if (duplicate) return { ok: false, error: "That same review is already on this manager." };
 
@@ -378,7 +402,7 @@ export function insertReview(review: ValidReview, divisionId: string): InsertRes
   db.exec("BEGIN IMMEDIATE");
   try {
     db.prepare(
-      "INSERT INTO reviews (id, manager_id, rating, body, created_at) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO reviews (id, manager_id, rating, body, created_at, hidden) VALUES (?, ?, ?, ?, ?, 0)",
     ).run(reviewId, review.managerId, review.rating, review.body, today);
     const insertTag = db.prepare("INSERT INTO review_tags (review_id, tag) VALUES (?, ?)");
     for (const tag of review.tags) insertTag.run(reviewId, tag);

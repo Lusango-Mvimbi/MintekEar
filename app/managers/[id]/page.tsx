@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { moderateReview } from "@/app/actions";
 import { Avatar } from "@/components/Avatar";
 import { CompanyMark } from "@/components/CompanyMark";
 import { ScoreBlock } from "@/components/ScoreBlock";
@@ -113,7 +114,7 @@ export default async function ManagerPage({
         ) : null}
 
         <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <Distribution ratings={manager.reviews.map((review) => review.rating)} />
+          <Distribution ratings={manager.reviews.filter((review) => !review.hidden).map((review) => review.rating)} />
           {manager.divisionId === viewer.divisionId ? (
             <Link
               href={`/review?manager=${manager.id}`}
@@ -130,9 +131,21 @@ export default async function ManagerPage({
         {!showComments ? (
           <p className="rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
             Scores and traits are visible in your division. The written comments are only open to HR people the
-            administrator has allowed.
+            administrator has allowed. See the{" "}
+            <Link href="/policy" className="font-semibold text-accent">
+              review policy
+            </Link>
+            .
           </p>
-        ) : null}
+        ) : (
+          <p className="rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
+            If a review breaks the{" "}
+            <Link href="/policy" className="font-semibold text-accent">
+              review policy
+            </Link>
+            , you may hide it. Hiding does not reveal who wrote it.
+          </p>
+        )}
         {manager.reviews.length === 0 ? (
           <p className="text-sm text-muted">No reviews yet.</p>
         ) : (
@@ -142,13 +155,22 @@ export default async function ManagerPage({
               {reviews.map((review) => (
                 <article
                   key={review.id}
-                  className="rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04]"
+                  className={`rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ${
+                    review.hidden ? "ring-[#d64545]/25 opacity-80" : "ring-black/[0.04]"
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
                     <ScoreBlock score={review.rating} />
-                    <time className="text-sm text-muted" dateTime={review.createdAt}>
-                      {timeAgo(review.createdAt)}
-                    </time>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {review.hidden ? (
+                        <span className="rounded-full bg-[#fdecee] px-2.5 py-1 text-xs font-bold text-[#d64545]">
+                          Hidden by HR
+                        </span>
+                      ) : null}
+                      <time className="text-sm text-muted" dateTime={review.createdAt}>
+                        {timeAgo(review.createdAt)}
+                      </time>
+                    </div>
                   </div>
                   {review.tags.length > 0 ? (
                     <div className="mt-4">
@@ -160,6 +182,15 @@ export default async function ManagerPage({
                   ) : (
                     <p className="mt-4 text-sm text-muted">Comment hidden.</p>
                   )}
+                  {showComments ? (
+                    <form action={moderateReview} className="mt-4">
+                      <input type="hidden" name="reviewId" value={review.id} />
+                      <input type="hidden" name="action" value={review.hidden ? "show" : "hide"} />
+                      <button type="submit" className="text-sm font-semibold text-brand">
+                        {review.hidden ? "Restore review" : "Hide review (policy)"}
+                      </button>
+                    </form>
+                  ) : null}
                 </article>
               ))}
             </div>
