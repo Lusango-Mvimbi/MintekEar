@@ -100,37 +100,63 @@ function DivisionScoreChart({ report }: { report: OrganisationReport }) {
     );
   }
 
-  const max = 5;
+  const columns = "grid grid-cols-[minmax(6.5rem,34%)_minmax(0,1fr)_2.25rem] gap-x-2";
 
   return (
     <Panel
       title="Division scores"
       subtitle={scoped ? `Average score for ${scoped.name}.` : "Average score by division."}
     >
-      <ul className="space-y-4" aria-label="Bar chart of average scores by division">
-        {rows.map((division) => {
-          const average = division.average as number;
-          const tone = scoreTone(average);
-          const width = Math.max(8, (average / max) * 100);
-          return (
-            <li key={division.divisionId} className="min-w-0">
-              <div className="mb-1.5 flex items-start justify-between gap-3">
-                <span className="min-w-0 text-sm leading-5 font-semibold break-words text-ink">{division.name}</span>
-                <span className="shrink-0 text-sm font-bold tabular-nums">{formatScore(average)}</span>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-paper">
+      <div className="min-w-0" data-division-score-chart="bar">
+        <ul className="min-w-0" aria-label="Bar chart of average scores by division">
+          {rows.map((division, index) => {
+            const average = division.average as number;
+            const tone = scoreTone(average);
+            const width = (average / 5) * 100;
+            return (
+              <li key={division.divisionId} className={`${columns} items-stretch`}>
+                <span className="py-1.5 text-xs leading-4 font-semibold break-words text-ink">{division.name}</span>
                 <div
-                  className="h-full rounded-full"
-                  style={{ width: `${width}%`, background: SCORE_FILL[tone] }}
-                />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="mt-3 flex justify-between text-[11px] font-semibold text-muted" aria-hidden>
-        <span>0</span>
-        <span>5</span>
+                  className={`relative min-w-0 bg-paper/80 ${index === 0 ? "rounded-t-sm" : ""} ${
+                    index === rows.length - 1 ? "rounded-b-sm" : ""
+                  }`}
+                >
+                  <div className="pointer-events-none absolute inset-0 flex justify-between" aria-hidden>
+                    {Array.from({ length: 6 }, (_, tick) => (
+                      <span key={tick} className={`h-full w-px ${tick === 0 ? "bg-ink/25" : "bg-line"}`} />
+                    ))}
+                  </div>
+                  <div
+                    className="absolute top-1/2 left-0 h-3.5 -translate-y-1/2 rounded-r-[3px]"
+                    style={{
+                      width: width === 0 ? 0 : `max(${width}%, 3px)`,
+                      background: SCORE_FILL[tone],
+                    }}
+                  />
+                </div>
+                <span className="py-1.5 text-right text-xs font-bold tabular-nums">{formatScore(average)}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <div className={`${columns} mt-1 text-[10px] font-semibold text-muted tabular-nums`} aria-hidden>
+          <span />
+          <div className="relative h-4">
+            {[0, 1, 2, 3, 4, 5].map((tick) => (
+              <span
+                key={tick}
+                className="absolute top-0"
+                style={{
+                  left: `${(tick / 5) * 100}%`,
+                  transform: tick === 0 ? "none" : tick === 5 ? "translateX(-100%)" : "translateX(-50%)",
+                }}
+              >
+                {tick}
+              </span>
+            ))}
+          </div>
+          <span />
+        </div>
       </div>
     </Panel>
   );

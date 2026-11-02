@@ -5,7 +5,7 @@ import path from "node:path";
 import { describe, test } from "node:test";
 import { analysisChartGridClass, showManagersByDivision } from "../lib/analysis-graphs";
 import { analysisChartSpecs } from "../lib/analysis-chart-images";
-import { pngContainsColor, pngDimensions, renderBarChart, renderOverviewChart } from "../lib/chart-png";
+import { pngColorBounds, pngContainsColor, pngDimensions, renderBarChart, renderOverviewChart } from "../lib/chart-png";
 import { parseDivisionParam } from "../lib/divisions";
 
 function tempDb(): string {
@@ -219,7 +219,10 @@ describe("analysis graph settings", { concurrency: 1 }, () => {
         ["Finance"],
       );
       assert.equal(financeCharts[0]?.bars[0]?.valueLabel, "2.0");
+      assert.equal(financeCharts[0]?.layout, "graph");
       assert.equal(financeCharts[0]?.bars.some((bar) => bar.label === "ICT"), false);
+      assert.equal(financeCharts[1]?.layout, undefined);
+      assert.equal(financeCharts[2]?.layout, undefined);
       assert.deepEqual(
         financeCharts[1]?.bars.map((bar) => bar.label),
         ["Finance"],
@@ -294,6 +297,36 @@ test("chart pictures use the analysis series and a real PNG", () => {
   assert.equal(pngDimensions(overview.png).width, overview.width);
   assert.equal(pngContainsColor(overview.png, "#194d5c"), true);
   assert.equal(pngContainsColor(overview.png, "#d64545"), true);
+});
+
+test("division score pictures are a shared-axis bar graph", () => {
+  const image = renderBarChart({
+    title: "Division scores",
+    subtitle: "Average score by division.",
+    layout: "graph",
+    bars: [
+      { label: "Pyrometallurgy", valueLabel: "4.8", fraction: 4.8 / 5, color: "#0f8a4b" },
+      { label: "Mineral Processing", valueLabel: "1.7", fraction: 1.7 / 5, color: "#d64545" },
+      { label: "Finance", valueLabel: "3.2", fraction: 3.2 / 5, color: "#c4841d" },
+    ],
+    empty: "No scored divisions yet.",
+    axisLow: "0",
+    axisHigh: "5",
+  });
+  assert.equal(image.png.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  const good = pngColorBounds(image.png, "#0f8a4b");
+  const bad = pngColorBounds(image.png, "#d64545");
+  const mixed = pngColorBounds(image.png, "#c4841d");
+  assert.ok(good);
+  assert.ok(bad);
+  assert.ok(mixed);
+  assert.ok(Math.abs(good.minX - bad.minX) <= 2);
+  assert.ok(Math.abs(good.minX - mixed.minX) <= 2);
+  assert.ok(good.maxX > mixed.maxX);
+  assert.ok(mixed.maxX > bad.maxX);
+  assert.ok(good.maxY < bad.minY);
+  assert.ok(bad.maxY < mixed.minY);
+  assert.equal(pngContainsColor(image.png, "#194d5c"), true);
 });
 
 test("analysis division param keeps known division ids only", () => {

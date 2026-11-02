@@ -36,6 +36,7 @@ export function analysisChartSpecs(report: OrganisationReport): BarChartSpec[] {
   const divisionScores: BarChartSpec = {
     title: "Division scores",
     subtitle: scoped ? `Average score for ${scoped}.` : "Average score by division.",
+    layout: "graph",
     bars: divisionRows.map((division) => {
       const average = division.average as number;
       return {

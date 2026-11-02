@@ -29,7 +29,7 @@ export const ANALYSIS_GRAPHS: readonly AnalysisGraphDefinition[] = [
   {
     id: "division-scores",
     label: "Division score chart",
-    description: "Average score by division as a horizontal bar chart.",
+    description: "Average score by division as a bar graph.",
     defaultEnabled: true,
   },
   {

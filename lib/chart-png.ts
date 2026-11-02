@@ -25,6 +25,11 @@ export type BarChartSpec = {
   emptyTone?: "good" | "neutral";
   axisLow?: string;
   axisHigh?: string;
+  /**
+   * "graph" is a shared-axis bar graph (category labels, 0–5 scale, rectangular bars).
+   * Omitted keeps the compact meter used by the other Analysis charts.
+   */
+  layout?: "graph";
 };
 
 export type OverviewCard = {
@@ -102,7 +107,7 @@ function text(
   x: number,
   y: number,
   value: string,
-  options: { size: number; fill: string; weight?: number; anchor?: "start" | "end" },
+  options: { size: number; fill: string; weight?: number; anchor?: "start" | "end" | "middle" },
 ): string {
   const anchor = options.anchor ?? "start";
   const weight = options.weight ?? 400;
@@ -146,7 +151,91 @@ function heading(title: string, subtitle: string, y: number): { svg: string; nex
   return { svg: parts.join(""), next: cursor + 8 };
 }
 
+function emptyMessage(spec: BarChartSpec, cursor: number, chunks: string[]): number {
+  const tone = spec.emptyTone === "good" ? GOOD : MUTED;
+  const background = spec.emptyTone === "good" ? GOOD_BG : PAPER;
+  const lines = wrapText(spec.empty, 80, 2);
+  const boxH = 28 + lines.length * 22;
+  const trackW = WIDTH - PAD * 2;
+  chunks.push(`<rect x="${PAD}" y="${cursor}" width="${trackW}" height="${boxH}" rx="14" fill="${background}"/>`);
+  lines.forEach((line, index) => {
+    chunks.push(text(PAD + 18, cursor + 14 + index * 22, line, { size: 15, fill: tone, weight: 700 }));
+  });
+  return cursor + boxH;
+}
+
+/** Horizontal bar graph with one shared 0–5 axis. Used for division scores. */
+function renderAxisBarGraph(spec: BarChartSpec): { png: Buffer; width: number; height: number } {
+  const labelW = 250;
+  const valueW = 56;
+  const gap = 14;
+  const plotX = PAD + labelW + gap;
+  const plotRight = WIDTH - PAD - valueW - gap;
+  const plotW = plotRight - plotX;
+  const head = heading(spec.title, spec.subtitle, 28);
+  let cursor = head.next + 4;
+  const chunks: string[] = [head.svg];
+
+  if (spec.bars.length === 0) {
+    cursor = emptyMessage(spec, cursor, chunks);
+  } else {
+    const rows = spec.bars.map((bar) => {
+      const lines = wrapText(bar.label, 28, 2);
+      const block = (lines.length - 1) * 18 + 14;
+      return { bar, lines, block, height: Math.max(36, block + 16) };
+    });
+    const plotTop = cursor;
+    const plotH = rows.reduce((sum, row) => sum + row.height, 0);
+    const plotBottom = plotTop + plotH;
+    chunks.push(`<rect x="${plotX}" y="${plotTop}" width="${plotW}" height="${plotH}" fill="${PAPER}"/>`);
+    for (let tick = 0; tick <= 5; tick += 1) {
+      const x = plotX + (plotW * tick) / 5;
+      const stroke = tick === 0 ? INK : LINE;
+      const strokeWidth = tick === 0 ? 1.5 : 1;
+      chunks.push(
+        `<line x1="${x.toFixed(2)}" y1="${plotTop}" x2="${x.toFixed(2)}" y2="${plotBottom}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`,
+      );
+    }
+    chunks.push(
+      `<line x1="${plotX}" y1="${plotBottom}" x2="${plotRight}" y2="${plotBottom}" stroke="${LINE}" stroke-width="1"/>`,
+    );
+
+    let y = plotTop;
+    for (const row of rows) {
+      const textTop = y + (row.height - row.block) / 2;
+      row.lines.forEach((line, index) => {
+        chunks.push(text(PAD, textTop + index * 18, line, { size: 14, fill: INK, weight: 700 }));
+      });
+      const fraction = Math.min(1, Math.max(0, row.bar.fraction));
+      const barH = 14;
+      const barY = y + (row.height - barH) / 2;
+      const barW = fraction === 0 ? 0 : Math.min(plotW, Math.max(3, Math.round(plotW * fraction)));
+      if (barW > 0) {
+        const radius = Math.min(3, barW / 2);
+        chunks.push(
+          `<rect x="${plotX}" y="${barY}" width="${barW}" height="${barH}" rx="${radius}" fill="${escapeXml(row.bar.color)}"/>`,
+        );
+      }
+      chunks.push(text(plotRight + gap, barY, row.bar.valueLabel, { size: 14, fill: INK, weight: 700 }));
+      y += row.height;
+    }
+
+    const axisY = plotBottom + 8;
+    for (let tick = 0; tick <= 5; tick += 1) {
+      const x = plotX + (plotW * tick) / 5;
+      const anchor = tick === 0 ? "start" : tick === 5 ? "end" : "middle";
+      chunks.push(text(x, axisY, String(tick), { size: 12, fill: MUTED, weight: 700, anchor }));
+    }
+    cursor = axisY + 16;
+  }
+
+  const height = cursor + 24;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}">${frame(height)}${chunks.join("")}</svg>`;
+  return raster(svg, height);
+}
+
 export function renderBarChart(spec: BarChartSpec): { png: Buffer; width: number; height: number } {
+  if (spec.layout === "graph") return renderAxisBarGraph(spec);
   const trackX = PAD;
   const trackW = WIDTH - PAD * 2;
   const head = heading(spec.title, spec.subtitle, 28);
@@ -154,15 +243,7 @@ export function renderBarChart(spec: BarChartSpec): { png: Buffer; width: number
   const chunks: string[] = [head.svg];
 
   if (spec.bars.length === 0) {
-    const tone = spec.emptyTone === "good" ? GOOD : MUTED;
-    const background = spec.emptyTone === "good" ? GOOD_BG : PAPER;
-    const lines = wrapText(spec.empty, 80, 2);
-    const boxH = 28 + lines.length * 22;
-    chunks.push(`<rect x="${PAD}" y="${cursor}" width="${trackW}" height="${boxH}" rx="14" fill="${background}"/>`);
-    lines.forEach((line, index) => {
-      chunks.push(text(PAD + 18, cursor + 14 + index * 22, line, { size: 15, fill: tone, weight: 700 }));
-    });
-    cursor += boxH;
+    cursor = emptyMessage(spec, cursor, chunks);
   } else {
     for (const bar of spec.bars) {
       chunks.push(text(trackX, cursor, bar.label, { size: 15, fill: INK, weight: 700 }));
@@ -247,13 +328,15 @@ function paeth(left: number, up: number, upLeft: number): number {
   return upLeft;
 }
 
-/** True when a flat fill of that colour survives in the PNG (edges may be antialiased). */
-export function pngContainsColor(png: Buffer, hex: string): boolean {
+export type PngColorBounds = { minX: number; maxX: number; minY: number; maxY: number };
+
+/** Bounding box of exact pixels of a flat fill. Null when that colour is absent. */
+export function pngColorBounds(png: Buffer, hex: string): PngColorBounds | null {
   const [wantR, wantG, wantB] = parseHex(hex);
   const { width, height } = pngDimensions(png);
   const colorType = png[25];
   const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : 0;
-  if (channels === 0) return false;
+  if (channels === 0) return null;
 
   const idat: Buffer[] = [];
   let offset = 8;
@@ -292,10 +375,25 @@ export function pngContainsColor(png: Buffer, hex: string): boolean {
     cursor += stride + 1;
   }
 
-  for (const row of rows) {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  rows.forEach((row, y) => {
     for (let i = 0; i < row.length; i += channels) {
-      if (row[i] === wantR && row[i + 1] === wantG && row[i + 2] === wantB) return true;
+      if (row[i] !== wantR || row[i + 1] !== wantG || row[i + 2] !== wantB) continue;
+      const x = i / channels;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
     }
-  }
-  return false;
+  });
+  if (maxX < 0) return null;
+  return { minX, maxX, minY, maxY };
+}
+
+/** True when a flat fill of that colour survives in the PNG (edges may be antialiased). */
+export function pngContainsColor(png: Buffer, hex: string): boolean {
+  return pngColorBounds(png, hex) !== null;
 }
