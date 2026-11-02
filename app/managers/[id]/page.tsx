@@ -75,7 +75,7 @@ export default async function ManagerPage({
       {posted === "1" ? (
         <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-accent ring-1 ring-accent/20">
           Review posted. Only the score, the words, and the day were stored. Your name was not stored. Comments stay
-          with selected HR.
+          closed unless an administrator grants access.
         </p>
       ) : null}
 
@@ -130,8 +130,8 @@ export default async function ManagerPage({
         <h2 className="text-lg font-bold">{showComments ? "Reviews" : "Review scores"}</h2>
         {!showComments ? (
           <p className="rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
-            Scores and traits are visible in your division. The written comments are only open to HR people the
-            administrator has allowed. See the{" "}
+            Scores and traits are visible in your division. Written comments stay closed unless an administrator (HR)
+            grants access. See the{" "}
             <Link href="/policy" className="font-semibold text-accent">
               review policy
             </Link>

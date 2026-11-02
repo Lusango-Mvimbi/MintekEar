@@ -26,9 +26,9 @@ Reviews are stored in `data/mintekear.db`. That file is created on first launch 
 
 Each person sees reviews for their own division. The division names match the Mintek directory: Pyrometallurgy, Hydrometallurgy, Analytical Chemistry, Human Resources, and the others shown there. The lists under those names are document libraries, not extra divisions.
 
-Until the employee database is connected, the header has a division preview so the filter can be tried. Choose Human Resources, then pick an HR access person. Set `MINTEKEAR_DIRECTORY=employee` when the directory is ready. The connection point is `lookupEmployee` in [`lib/directory.ts`](lib/directory.ts). It should return only the person's division and which HR privileges they have. It must not pass a name, staff number, email, or device into the review save.
+Until the employee database is connected, a demo bar switches between two kinds of user: a colleague and an administrator (HR). A division preview in the header lets you try the filter for other teams. Set `MINTEKEAR_DIRECTORY=employee` when the directory is ready. The connection point is `lookupEmployee` in [`lib/directory.ts`](lib/directory.ts). It should return only the person's division and which privileges they have (`canReadComments`, `canViewAnalysis`, `canDownloadReport`, `isAdmin`). It must not pass a name, staff number, email, or device into the review save.
 
-Employees see scores and traits for managers in their own division. They do not see the written comments. An administrator chooses which people in Human Resources may read comments, open Analysis, and download / print the report. Other HR colleagues get the same access as other employees. The Access page is at `/admin`.
+Colleagues see scores and traits for managers in their own division. They do not see the written comments. People who work in Human Resources and are not administrators are colleagues: they see the same thing. An administrator (HR) already has comments, Analysis, download, and the Access page. On `/admin` they can grant those privileges to a colleague. A grant does not create another kind of user.
 
 On the same Access page, the administrator picks which Analysis graphs are shown (overview totals, division scores, score mix, needs attention, trait frequency, the division table, and managers by division). A sensible default set is on so demos still show charts. People with Analysis access only see the graphs the administrator left enabled. Charts stay anonymous — they never name a reviewer.
 
@@ -36,11 +36,11 @@ On the same Access page, the administrator picks which Analysis graphs are shown
 
 Posting a review requires accepting the review policy (see `/policy`). The form checkbox must be on before the server accepts the post.
 
-Selected HR people who may read comments can hide a review that breaks the policy, or restore it later. A hidden review drops out of public scores, trait counts, feeds, and Analysis. Hiding does not reveal who wrote it — there is no author on the review row.
+An administrator (HR), or a colleague they have allowed to read comments, can hide a review that breaks the policy, or restore it later. A hidden review drops out of public scores, trait counts, feeds, and Analysis. Hiding does not reveal who wrote it — there is no author on the review row.
 
 ## What a review stores
 
-A review row has the manager, the score, the words, the traits, the calendar day in Johannesburg, and whether HR has hidden it. It does not store a clock time, a person, a staff number, an IP address, or a computer. Do not add request logging that keeps those details for the review route.
+A review row has the manager, the score, the words, the traits, the calendar day in Johannesburg, and whether it has been hidden. It does not store a clock time, a person, a staff number, an IP address, or a computer. Do not add request logging that keeps those details for the review route.
 
 ## Set up for another company
 
@@ -55,4 +55,4 @@ One deployment is one organisation. Edit [`company.json`](company.json):
 
 Put the logo file in `public/brand/` and restart. Score colours stay red, amber, and green so a low score reads the same way for every customer.
 
-The first screen is a feed of managers in your division, newest review first, including people who still have no reviews. A card opens that person's reviews, grouped by year with the latest first. “Write a review” lists managers in that same division, lets you search by name, and posts anonymously. You cannot add a manager by typing a name that is not already listed. Low scores read as “Needs attention”. Until the employee directory is connected, the header switch is labelled Demo preview.
+The first screen is a feed of managers in your division, newest review first, including people who still have no reviews. A card opens that person's reviews, grouped by year with the latest first. “Write a review” lists managers in that same division, lets you search by name, and posts anonymously. You cannot add a manager by typing a name that is not already listed. Low scores read as “Needs attention”. Until the employee directory is connected, the demo bar is labelled Demo · viewing as, and it switches between Colleague and Administrator (HR).

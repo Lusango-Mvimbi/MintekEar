@@ -3,7 +3,7 @@ export const POLICY_TITLE = "Review policy";
 export const POLICY_SHORT = [
   "Write only about behaviour you saw at work.",
   "Do not name other staff, and do not use hate, threats, or harassment.",
-  "Selected HR may hide a review that breaks this policy. They still will not be told who wrote it.",
+  "An administrator (HR) may hide a review that breaks this policy, or allow a colleague to do so. They still will not be told who wrote it.",
 ] as const;
 
 export const POLICY_SECTIONS = [
@@ -29,18 +29,18 @@ export const POLICY_SECTIONS = [
     points: [
       "A review stores the manager, the score, the words, the traits, and the calendar day.",
       "It does not store your name, staff number, IP address, or which computer you used.",
-      "Division staff see scores and traits. Written comments stay with HR people the administrator allows.",
+      "Colleagues see scores and traits. Written comments stay closed unless an administrator (HR) grants access.",
     ],
   },
   {
-    title: "What HR can do",
+    title: "Comments and hiding",
     points: [
-      "Selected HR can read comments and the Analysis report.",
-      "If a review breaks this policy, those HR people may hide it so it no longer counts on the manager.",
+      "An administrator (HR) can read comments and the Analysis report, and can grant the same to a colleague.",
+      "If a review breaks this policy, a person with that access may hide it so it no longer counts on the manager.",
       "Hiding a review does not reveal who wrote it. There is no author on the review to look up.",
     ],
   },
 ] as const;
 
 export const POLICY_ACCEPT_LABEL =
-  "I have read the review policy. I will stick to behaviour I saw at work, and I understand selected HR may hide a review that breaks the rules.";
+  "I have read the review policy. I will stick to behaviour I saw at work, and I understand an administrator may hide a review that breaks the rules.";

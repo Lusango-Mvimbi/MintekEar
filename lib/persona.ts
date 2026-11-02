@@ -1,38 +1,30 @@
 import type { Viewer } from "./directory";
 import { divisionName } from "./divisions";
 
-export type DemoPersona = "employee" | "hr-admin" | "hr-analyst" | "hr-colleague";
+/** Demo viewing-as switch. Everyone who is not an administrator is a colleague. */
+export type DemoPersona = "colleague" | "administrator";
 
 export function demoPersona(viewer: Viewer): DemoPersona {
-  if (viewer.isAdmin) return "hr-admin";
-  if (viewer.hrDivision && viewer.canViewAnalysis) return "hr-analyst";
-  if (viewer.hrDivision) return "hr-colleague";
-  return "employee";
+  if (viewer.isAdmin) return "administrator";
+  return "colleague";
 }
 
 export function personaHeadline(viewer: Viewer): string {
-  switch (demoPersona(viewer)) {
-    case "hr-admin":
-      return "HR administrator";
-    case "hr-analyst":
-      return "HR analyst";
-    case "hr-colleague":
-      return "HR colleague (same as employee)";
-    default:
-      return "Normal employee";
-  }
+  return demoPersona(viewer) === "administrator" ? "Administrator (HR)" : "Colleague";
 }
 
 export function personaSummary(viewer: Viewer): string {
-  const division = viewer.divisionId ? divisionName(viewer.divisionId) : "no division";
-  switch (demoPersona(viewer)) {
-    case "hr-admin":
-      return "Full access: comments, Analysis, Access, and download.";
-    case "hr-analyst":
-      return "Can use Analysis and read comments if Access allows it.";
-    case "hr-colleague":
-      return `Same as other staff in ${division}: scores and traits only, no comments.`;
-    default:
-      return `${division}: scores and traits only. Comments stay hidden.`;
+  if (demoPersona(viewer) === "administrator") {
+    return "Full access: comments, Analysis, Access, and download.";
   }
+
+  const division = viewer.divisionId ? divisionName(viewer.divisionId) : "no division";
+  const granted: string[] = [];
+  if (viewer.canReadComments) granted.push("comments");
+  if (viewer.canViewAnalysis) granted.push("Analysis");
+  if (viewer.canDownloadReport) granted.push("download");
+  if (granted.length === 0) {
+    return `${division}: scores and traits only. Comments stay hidden.`;
+  }
+  return `${division}: a colleague. An administrator has granted ${granted.join(", ")}.`;
 }

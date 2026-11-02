@@ -21,11 +21,11 @@ export default async function AdminPage({
 
   return (
     <div>
-      <h1 className="text-[28px] font-bold tracking-tight">HR access</h1>
+      <h1 className="text-[28px] font-bold tracking-tight">Access</h1>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-        Choose which people in Human Resources may read review comments, open Analysis, and download the report.
-        Everyone else — including other HR colleagues — sees the same division view as other employees: scores and
-        traits only, no written comments. This list never becomes part of a review.
+        Grant a colleague permission to read review comments, open Analysis, and download the report. An administrator
+        (HR) already has that access. Everyone else sees scores and traits only, including people who work in Human
+        Resources and are not administrators. This list never becomes part of a review.
       </p>
 
       {params.saved === "1" ? (
@@ -54,7 +54,7 @@ export default async function AdminPage({
               <div>
                 <h2 className="text-lg font-bold">{person.displayName}</h2>
                 <p className="mt-1 text-sm text-muted">
-                  {person.isAdmin ? "Administrator — full access stays on." : "HR colleague"}
+                  {person.isAdmin ? "Administrator (HR) — full access stays on." : "Colleague"}
                 </p>
               </div>
               {!person.isAdmin ? (

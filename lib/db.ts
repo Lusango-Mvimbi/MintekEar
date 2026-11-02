@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { alignHrAccess } from "./hr-seed";
 import { seedIfEmpty } from "./seed";
 
 const globalForDb = globalThis as unknown as { mintekearDb?: DatabaseSync };
@@ -74,17 +75,7 @@ function migrate(db: DatabaseSync) {
     UPDATE managers SET created_at = substr(created_at, 1, 10) WHERE length(created_at) > 10;
   `);
 
-  const hrCount = db.prepare("SELECT COUNT(*) AS count FROM hr_access").get() as { count: number | bigint };
-  if (Number(hrCount.count) === 0) {
-    const insert = db.prepare(
-      `INSERT INTO hr_access
-        (staff_id, display_name, can_read_comments, can_view_analysis, can_download_report, is_admin)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    );
-    insert.run("hr-admin", "System administrator", 1, 1, 1, 1);
-    insert.run("hr-analyst", "HR analyst (example)", 1, 1, 1, 0);
-    insert.run("hr-general", "HR colleague (example)", 0, 0, 0, 0);
-  }
+  alignHrAccess(db);
 }
 
 export function getDb(): DatabaseSync {

@@ -6,9 +6,9 @@ import type { ValidReview } from "./validation";
 
 export type ReviewAccess = {
   divisionId: string;
-  /** Privileged HR may open managers outside their own division. */
+  /** People with comment or Analysis access may open managers outside their own division. */
   orgWide: boolean;
-  /** Only selected HR may receive review comment text. */
+  /** Only people an administrator has allowed may receive review comment text. */
   includeBodies: boolean;
 };
 

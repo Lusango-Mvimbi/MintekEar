@@ -36,7 +36,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <main className="mx-auto w-full max-w-[1040px] px-4 py-8">{children}</main>
         <footer className="mx-auto w-full max-w-[1040px] px-4 pb-12 text-sm leading-6 text-muted print:hidden">
           A review stores the score, the words, and the day. It does not store a name, a staff number, or which computer
-          it came from. Written comments are only open to HR people the administrator allows.{" "}
+          it came from. Written comments stay closed unless an administrator (HR) grants access.{" "}
           <a href="/policy" className="font-semibold text-accent">
             Review policy
           </a>

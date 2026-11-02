@@ -11,14 +11,10 @@ function PersonaButton({
   value: string;
   label: string;
   active: boolean;
-  tone: "employee" | "admin" | "other";
+  tone: "colleague" | "admin";
 }) {
   const activeClass =
-    tone === "admin"
-      ? "bg-brand text-white ring-brand"
-      : tone === "employee"
-        ? "bg-accent text-white ring-accent"
-        : "bg-ink text-white ring-ink";
+    tone === "admin" ? "bg-brand text-white ring-brand" : "bg-accent text-white ring-accent";
 
   return (
     <button
@@ -39,8 +35,7 @@ export function DemoViewingAs({ viewer }: { viewer: Viewer }) {
   if (viewer.source !== "preview") return null;
 
   const persona = demoPersona(viewer);
-  const isAdmin = persona === "hr-admin";
-  const isEmployee = persona === "employee";
+  const isAdmin = persona === "administrator";
 
   return (
     <div
@@ -55,20 +50,8 @@ export function DemoViewingAs({ viewer }: { viewer: Viewer }) {
           <p className="mt-0.5 text-sm leading-5 text-muted">{personaSummary(viewer)}</p>
         </div>
         <form action={previewPersona} className="flex flex-wrap items-center gap-2">
-          <PersonaButton value="employee" label="Normal employee" active={isEmployee} tone="employee" />
-          <PersonaButton value="hr-admin" label="HR administrator" active={isAdmin} tone="admin" />
-          <PersonaButton
-            value="hr-analyst"
-            label="HR analyst"
-            active={persona === "hr-analyst"}
-            tone="other"
-          />
-          <PersonaButton
-            value="hr-colleague"
-            label="HR colleague"
-            active={persona === "hr-colleague"}
-            tone="other"
-          />
+          <PersonaButton value="colleague" label="Colleague" active={!isAdmin} tone="colleague" />
+          <PersonaButton value="administrator" label="Administrator (HR)" active={isAdmin} tone="admin" />
         </form>
       </div>
     </div>

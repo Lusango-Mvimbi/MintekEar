@@ -7,6 +7,7 @@ import { getHrStaff, updateHrAccess } from "@/lib/access";
 import { updateAnalysisGraphVisibility } from "@/lib/analysis-graphs";
 import { getViewer, previewStaffCookieName } from "@/lib/directory";
 import { divisionById } from "@/lib/divisions";
+import { DEMO_ADMIN_ID, DEMO_COLLEAGUE_ID } from "@/lib/hr-seed";
 import { insertReview, setReviewHidden } from "@/lib/queries";
 import { validateReview, type ReviewDraft } from "@/lib/validation";
 
@@ -76,27 +77,25 @@ export async function previewStaff(formData: FormData) {
   redirect("/");
 }
 
-/** One-click demo switch: normal employee or an HR access person. */
+/** One-click demo switch: a colleague, or an administrator (HR). */
 export async function previewPersona(formData: FormData) {
   if (process.env.MINTEKEAR_DIRECTORY === "employee") redirect("/");
   const persona = String(formData.get("persona") ?? "");
   const jar = await cookies();
 
-  if (persona === "employee") {
+  if (persona === "colleague") {
     jar.set("mintekear_division", "pyrometallurgy", cookieOpts);
-    jar.set(previewStaffCookieName(), "hr-general", cookieOpts);
+    jar.set(previewStaffCookieName(), DEMO_COLLEAGUE_ID, cookieOpts);
     redirect("/");
   }
 
-  const staffMap: Record<string, string> = {
-    "hr-admin": "hr-admin",
-    "hr-analyst": "hr-analyst",
-    "hr-colleague": "hr-general",
-  };
-  const staffId = staffMap[persona];
-  if (!staffId || !getHrStaff(staffId)) redirect("/");
-  jar.set("mintekear_division", "human-resources", cookieOpts);
-  jar.set(previewStaffCookieName(), staffId, cookieOpts);
+  if (persona === "administrator") {
+    if (!getHrStaff(DEMO_ADMIN_ID)) redirect("/");
+    jar.set("mintekear_division", "human-resources", cookieOpts);
+    jar.set(previewStaffCookieName(), DEMO_ADMIN_ID, cookieOpts);
+    redirect("/");
+  }
+
   redirect("/");
 }
 

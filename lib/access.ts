@@ -1,4 +1,5 @@
 import { getDb } from "./db";
+import { alignHrAccess, DEMO_ADMIN_ID, DEMO_ADMIN_NAME, DEMO_COLLEAGUE_ID, DEMO_COLLEAGUE_NAME } from "./hr-seed";
 
 export type HrStaff = {
   staffId: string;
@@ -32,27 +33,14 @@ function text(value: unknown): string {
   throw new Error("Expected text from the database.");
 }
 
-/** Demo HR people until the employee directory is connected. Names are examples only. */
+/** Demo people until the employee directory is connected. Names are examples only. */
 export const DEMO_HR_STAFF: readonly Omit<HrStaff, "canReadComments" | "canViewAnalysis" | "canDownloadReport">[] = [
-  { staffId: "hr-admin", displayName: "System administrator", isAdmin: true },
-  { staffId: "hr-analyst", displayName: "HR analyst (example)", isAdmin: false },
-  { staffId: "hr-general", displayName: "HR colleague (example)", isAdmin: false },
+  { staffId: DEMO_ADMIN_ID, displayName: DEMO_ADMIN_NAME, isAdmin: true },
+  { staffId: DEMO_COLLEAGUE_ID, displayName: DEMO_COLLEAGUE_NAME, isAdmin: false },
 ];
 
 export function ensureHrAccessSeeded() {
-  const db = getDb();
-  const count = db.prepare("SELECT COUNT(*) AS count FROM hr_access").get();
-  const n = typeof count?.count === "number" ? count.count : Number(count?.count ?? 0);
-  if (n > 0) return;
-
-  const insert = db.prepare(
-    `INSERT INTO hr_access
-      (staff_id, display_name, can_read_comments, can_view_analysis, can_download_report, is_admin)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  );
-  insert.run("hr-admin", "System administrator", 1, 1, 1, 1);
-  insert.run("hr-analyst", "HR analyst (example)", 1, 1, 1, 0);
-  insert.run("hr-general", "HR colleague (example)", 0, 0, 0, 0);
+  alignHrAccess(getDb());
 }
 
 export function listHrStaff(): HrStaff[] {
@@ -111,7 +99,7 @@ export function updateHrAccess(
 ): { ok: true } | { ok: false; error: string } {
   ensureHrAccessSeeded();
   const existing = getHrStaff(staffId);
-  if (!existing) return { ok: false, error: "That HR person is not on the list." };
+  if (!existing) return { ok: false, error: "That person is not on the list." };
   if (existing.isAdmin) {
     // Admin always keeps full access so the system cannot lock itself out.
     getDb()

@@ -67,8 +67,8 @@ export default async function HomePage({
 
       {viewer.source === "preview" ? (
         <p className="no-print mb-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
-          Use <span className="font-semibold text-ink">Demo · viewing as</span> above to flip between a normal employee
-          and the HR administrator. The division list is only for trying other teams. When the employee directory is
+          Use <span className="font-semibold text-ink">Demo · viewing as</span> above to flip between a colleague and
+          an administrator (HR). The division list is only for trying other teams. When the employee directory is
           connected, this demo bar disappears.
         </p>
       ) : null}

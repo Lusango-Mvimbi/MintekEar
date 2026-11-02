@@ -56,8 +56,8 @@ export function ReviewCard({
           ) : (
             <>
               <span className="text-[15px] leading-6 text-muted">
-                {manager.reviewCount} anonymous {manager.reviewCount === 1 ? "review" : "reviews"}. Comments are only
-                open to selected HR.
+                {manager.reviewCount} anonymous {manager.reviewCount === 1 ? "review" : "reviews"}. Comments stay
+                hidden unless an administrator grants access.
               </span>
               <span className="mt-3 block text-sm text-muted">{timeAgo(manager.latest.createdAt)}</span>
             </>

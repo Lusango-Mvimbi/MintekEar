@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { getHrStaff, grantsForStaff, type AccessGrants } from "./access";
 import { divisionById, HR_DIVISION_ID } from "./divisions";
+import { DEMO_COLLEAGUE_ID } from "./hr-seed";
 
 export type Viewer = AccessGrants & {
   divisionId: string | null;
@@ -54,9 +55,9 @@ export async function getViewer(): Promise<Viewer> {
     };
   }
 
-  const requestedStaff = jar.get(previewStaffCookie)?.value ?? "hr-general";
-  const staff = getHrStaff(requestedStaff) ?? getHrStaff("hr-general");
-  const staffId = staff?.staffId ?? "hr-general";
+  const requestedStaff = jar.get(previewStaffCookie)?.value ?? DEMO_COLLEAGUE_ID;
+  const staff = getHrStaff(requestedStaff) ?? getHrStaff(DEMO_COLLEAGUE_ID);
+  const staffId = staff?.staffId ?? DEMO_COLLEAGUE_ID;
   const grants = grantsForStaff(staffId);
 
   return {
@@ -77,7 +78,7 @@ export function previewStaffCookieName(): string {
   return previewStaffCookie;
 }
 
-/** Org-wide manager pages and Analysis for privileged HR only. */
+/** Org-wide manager pages and Analysis for people an administrator has allowed. */
 export function canBrowseOrganisation(viewer: Viewer): boolean {
   return viewer.canReadComments || viewer.canViewAnalysis;
 }
