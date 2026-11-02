@@ -1,9 +1,10 @@
 import { createRequire } from "node:module";
-import type { Worksheet } from "exceljs";
+import type { Workbook, Worksheet } from "exceljs";
+import { renderAnalysisCharts } from "./analysis-chart-images";
 import { company } from "./company";
 import { divisionName, parseDivisionParam } from "./divisions";
 import { reviewDate, roundScore } from "./format";
-import { listReviewsForExport, organisationReport, type ReviewExportRow } from "./queries";
+import { listReviewsForExport, organisationReport, type OrganisationReport, type ReviewExportRow } from "./queries";
 import { tagById } from "./tags";
 
 export type ExcelExportAccess = {
@@ -117,9 +118,7 @@ async function buildAnalysisWorkbook(scopeDivisionId: string | null, exportedOn:
   workbook.creator = company.appName;
   workbook.lastModifiedBy = company.appName;
   workbook.created = new Date(`${exportedOn}T00:00:00.000Z`);
-  workbook.subject = "Anonymous manager analysis";
-  workbook.description =
-    "Anonymous analysis export. No reviewer name, staff number, IP address, or device.";
+  workbook.subject = "Manager analysis";
 
   const summary = workbook.addWorksheet("Summary");
   summary.columns = [
@@ -141,6 +140,10 @@ async function buildAnalysisWorkbook(scopeDivisionId: string | null, exportedOn:
       item: "Needs attention",
       value: report.attention.length > 0 ? report.attention.map((division) => division.name).join(", ") : "None",
     },
+    {
+      item: "Graphs",
+      value: "Pictures of division scores, needs attention, and trait frequency are on the Graphs sheet.",
+    },
   ];
   for (const bucket of report.ratingMix) {
     summaryRows.push({ item: `Score ${bucket.rating}`, value: bucket.count });
@@ -149,13 +152,9 @@ async function buildAnalysisWorkbook(scopeDivisionId: string | null, exportedOn:
     const label = tagById(tag.id)?.label;
     if (label) summaryRows.push({ item: `Trait: ${label}`, value: tag.count });
   }
-  summaryRows.push({
-    item: "Anonymity",
-    value:
-      "Reviews are anonymous. This workbook has no reviewer name, staff number, IP address, or device. Hidden reviews are listed on Reviews and stay out of the averages.",
-  });
   for (const row of summaryRows) summary.addRow(row);
   paintSheet(summary);
+  addGraphSheet(workbook, report);
 
   const divisions = workbook.addWorksheet("Divisions");
   divisions.columns = [
@@ -239,6 +238,47 @@ async function buildAnalysisWorkbook(scopeDivisionId: string | null, exportedOn:
 
   const raw = await workbook.xlsx.writeBuffer();
   return Buffer.from(raw);
+}
+
+/** PNG snapshots of the Analysis charts, embedded with ExcelJS. Not a browser capture, and not Score mix. */
+function addGraphSheet(workbook: Workbook, report: OrganisationReport) {
+  const sheet = workbook.addWorksheet("Graphs");
+  sheet.getColumn(1).width = 88;
+  sheet.getCell("A1").value = "Pictures of the Analysis charts for this department.";
+  sheet.getCell("A1").font = { bold: true, size: 14, color: { argb: "FF194D5C" } };
+  sheet.getRow(1).height = 24;
+
+  const charts = renderAnalysisCharts(report);
+  let row = 2;
+  for (const chart of charts) {
+    sheet.getCell(row, 1).value = chart.title;
+    sheet.getCell(row, 1).font = { bold: true, size: 12, color: { argb: INK } };
+    sheet.getRow(row).height = 20;
+    const imageId = workbook.addImage({
+      buffer: chart.png as never,
+      extension: "png",
+    });
+    const anchor = row;
+    sheet.addImage(imageId, {
+      tl: { col: 0, row: anchor },
+      ext: { width: chart.width, height: chart.height },
+      editAs: "oneCell",
+    });
+    const span = Math.max(1, Math.ceil((chart.height * 72) / 96 / 15));
+    const points = ((chart.height * 72) / 96) / span;
+    for (let offset = 0; offset < span; offset += 1) {
+      sheet.getRow(anchor + 1 + offset).height = points;
+    }
+    row = anchor + 1 + span + 1;
+  }
+
+  sheet.pageSetup = {
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    paperSize: 9,
+  };
 }
 
 export async function exportAnalysisExcel(

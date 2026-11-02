@@ -53,7 +53,7 @@ export const ANALYSIS_GRAPHS: readonly AnalysisGraphDefinition[] = [
   {
     id: "managers",
     label: "Managers by division",
-    description: "Per-manager scores listed under each division.",
+    description: "Per-manager scores for the division you select. Hidden on All divisions.",
     defaultEnabled: true,
   },
 ];
@@ -105,6 +105,21 @@ export function getAnalysisGraphVisibility(): AnalysisGraphVisibility {
 
 export function isAnalysisGraphEnabled(id: AnalysisGraphId): boolean {
   return getAnalysisGraphVisibility()[id];
+}
+
+/** All divisions never shows the managers-by-division cards, even when an admin left that graph on. */
+export function showManagersByDivision(scopeDivisionId: string | null, enabled: boolean): boolean {
+  return enabled && typeof scopeDivisionId === "string" && scopeDivisionId.length > 0;
+}
+
+/**
+ * Chart panels stack on a narrow screen. From lg, two share a row.
+ * From xl, three share one row — as many of the chart panels as fit.
+ */
+export function analysisChartGridClass(panelCount: number): string {
+  if (panelCount >= 3) return "grid min-w-0 gap-6 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3";
+  if (panelCount === 2) return "grid min-w-0 gap-6 grid-cols-1 lg:grid-cols-2";
+  return "grid min-w-0 gap-6 grid-cols-1";
 }
 
 export function updateAnalysisGraphVisibility(

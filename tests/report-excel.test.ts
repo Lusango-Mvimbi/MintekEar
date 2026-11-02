@@ -137,6 +137,33 @@ function summaryValue(worksheet: Worksheet, item: string): string {
 
 const forbiddenHeader = /reviewer|author|ip address|device|staff number|email|user agent|identity/i;
 
+function assertGraphSheet(workbook: ExcelWorkbook, department: string) {
+  const graphs = sheet(workbook, "Graphs");
+  const images = graphs.getImages();
+  assert.equal(images.length, 3, "Graphs sheet embeds three chart pictures");
+  let text = "";
+  graphs.eachRow((row) => {
+    row.eachCell((cell) => {
+      text += `${String(cell.value ?? "")}\n`;
+    });
+  });
+  assert.match(text, /Division scores/);
+  assert.match(text, /Needs attention/);
+  assert.match(text, /Trait frequency/);
+  assert.equal(text.includes("Score mix"), false);
+  assert.equal(forbiddenHeader.test(text), false);
+  assert.match(summaryValue(sheet(workbook, "Summary"), "Graphs"), /Graphs sheet/);
+  assert.equal(summaryValue(sheet(workbook, "Summary"), "Department"), department);
+
+  const media = workbook.model.media ?? [];
+  assert.ok(media.length >= 3);
+  for (const item of media) {
+    const buffer = Buffer.isBuffer(item.buffer) ? item.buffer : Buffer.from(item.buffer);
+    assert.equal(buffer.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+    assert.equal(item.extension, "png");
+  }
+}
+
 describe("analysis excel export", { concurrency: 1 }, () => {
   test("excel download needs both privileges, or an administrator", () => {
     assert.equal(canDownloadExcelReport(colleague), false);
@@ -177,7 +204,7 @@ describe("analysis excel export", { concurrency: 1 }, () => {
       await workbook.xlsx.load(finance.body as never);
       assert.deepEqual(
         workbook.worksheets.map((item) => item.name),
-        ["Summary", "Divisions", "Managers", "Reviews"],
+        ["Summary", "Graphs", "Divisions", "Managers", "Reviews"],
       );
 
       const summary = sheet(workbook, "Summary");
@@ -185,7 +212,12 @@ describe("analysis excel export", { concurrency: 1 }, () => {
       assert.equal(summaryValue(summary, "Exported"), day);
       assert.equal(summaryValue(summary, "Visible reviews"), "1");
       assert.equal(summaryValue(summary, "Hidden reviews"), "1");
-      assert.match(summaryValue(summary, "Anonymity"), /no reviewer name/i);
+      let anonymityRow = false;
+      summary.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        if (String(row.getCell(1).value ?? "") === "Anonymity") anonymityRow = true;
+      });
+      assert.equal(anonymityRow, false);
 
       const reviews = sheet(workbook, "Reviews");
       const reviewHeaders = headers(reviews);
@@ -218,6 +250,7 @@ describe("analysis excel export", { concurrency: 1 }, () => {
       const managerNames = column(sheet(workbook, "Managers"), "Manager");
       assert.ok(managerNames.includes("Finance Lead"));
       assert.equal(managerNames.includes("ICT Lead"), false);
+      assertGraphSheet(workbook, "Finance");
 
       const all = await exportAnalysisExcel(adminWithStaleFlags, "not-a-division", day);
       assert.equal(all.ok, true);
@@ -237,6 +270,7 @@ describe("analysis excel export", { concurrency: 1 }, () => {
       const allDepartments = column(sheet(allBook, "Reviews"), "Department");
       assert.ok(allDepartments.includes("Finance"));
       assert.ok(allDepartments.includes("ICT"));
+      assertGraphSheet(allBook, "All departments");
     } finally {
       db.resetDbForTests();
       fs.rmSync(file, { force: true });

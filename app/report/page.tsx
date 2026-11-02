@@ -15,11 +15,11 @@ export const metadata = { title: "Analysis" };
 function scopeNote(scopeName: string | null, excel: boolean): string {
   if (scopeName) {
     return excel
-      ? `Managers in ${scopeName} only. Download Excel uses this division. Reviews stay anonymous.`
+      ? `Managers in ${scopeName} only. Download Excel uses this division and includes the charts. Reviews stay anonymous.`
       : `Managers in ${scopeName} only. Reviews stay anonymous.`;
   }
   return excel
-    ? "Every division. Download Excel includes all of them. Reviews stay anonymous."
+    ? "Every division. Download Excel includes the charts and every division. Reviews stay anonymous."
     : "Every division. Reviews stay anonymous.";
 }
 
@@ -46,7 +46,7 @@ export default async function ReportPage({
             Scores and traits {scopeName ? `in ${scopeName}` : "across Mintek"}. This report has no author, staff
             number, or computer.
             {excelAllowed
-              ? " Download Excel to take this view, including comments, for the division you select. Reviews stay anonymous."
+              ? " Download Excel to take this view, including the charts and comments, for the division you select. Reviews stay anonymous."
               : viewer.canReadComments
                 ? " You can open a manager to read the comments."
                 : " Written comments stay closed unless Access also allows them for you."}

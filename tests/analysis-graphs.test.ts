@@ -3,7 +3,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, test } from "node:test";
-import { parseDivisionParam } from "../lib/divisions";
+import { analysisChartGridClass, showManagersByDivision } from "../lib/analysis-graphs";
+import { analysisChartSpecs } from "../lib/analysis-chart-images";
+import { missingGlyphs, pngContainsColor, pngDimensions, renderBarChart } from "../lib/chart-png";
+import { DIVISIONS, parseDivisionParam } from "../lib/divisions";
+import { TAGS } from "../lib/tags";
 
 function tempDb(): string {
   return path.join(
@@ -205,11 +209,81 @@ describe("analysis graph settings", { concurrency: 1 }, () => {
       assert.equal(all.reviewCount, 2);
       assert.equal(all.ratingMix.find((bucket) => bucket.rating === 5)?.count, 0);
       assert.equal(all.divisions.filter((division) => division.reviewCount > 0).length, 2);
+
+      const financeCharts = analysisChartSpecs(finance);
+      assert.deepEqual(
+        financeCharts.map((chart) => chart.title),
+        ["Division scores", "Needs attention", "Trait frequency"],
+      );
+      assert.deepEqual(
+        financeCharts[0]?.bars.map((bar) => bar.label),
+        ["Finance"],
+      );
+      assert.equal(financeCharts[0]?.bars[0]?.valueLabel, "2.0");
+      assert.equal(financeCharts[0]?.bars.some((bar) => bar.label === "ICT"), false);
+      assert.deepEqual(
+        financeCharts[1]?.bars.map((bar) => bar.label),
+        ["Finance"],
+      );
+      assert.deepEqual(
+        financeCharts[2]?.bars.map((bar) => bar.label),
+        ["Blames team"],
+      );
+      assert.equal(financeCharts.some((chart) => /score mix/i.test(chart.title)), false);
+
+      const allCharts = analysisChartSpecs(all);
+      assert.deepEqual(
+        allCharts[0]?.bars.map((bar) => bar.label).sort(),
+        ["Finance", "ICT"],
+      );
+      assert.equal(allCharts[1]?.bars.length, 2);
     } finally {
       db.resetDbForTests();
       fs.rmSync(file, { force: true });
     }
   });
+});
+
+test("all divisions hides manager cards, and chart panels share one row on a wide screen", () => {
+  assert.equal(showManagersByDivision(null, true), false);
+  assert.equal(showManagersByDivision("", true), false);
+  assert.equal(showManagersByDivision("pyrometallurgy", false), false);
+  assert.equal(showManagersByDivision("pyrometallurgy", true), true);
+
+  const three = analysisChartGridClass(3);
+  assert.match(three, /grid-cols-1/);
+  assert.match(three, /lg:grid-cols-2/);
+  assert.match(three, /xl:grid-cols-3/);
+  const two = analysisChartGridClass(2);
+  assert.match(two, /grid-cols-1/);
+  assert.match(two, /lg:grid-cols-2/);
+  assert.equal(two.includes("xl:grid-cols-3"), false);
+  assert.equal(analysisChartGridClass(1).includes("lg:grid-cols"), false);
+});
+
+test("chart pictures use the analysis series and a real PNG", () => {
+  const names = DIVISIONS.map((division) => division.name).join(" ");
+  const traits = TAGS.map((tag) => tag.label).join(" ");
+  assert.deepEqual(missingGlyphs(`${names} ${traits} 0123456789. ·`), []);
+
+  const image = renderBarChart({
+    title: "Division scores",
+    subtitle: "Average anonymous score by division.",
+    bars: [
+      { label: "Pyrometallurgy", valueLabel: "4.8", fraction: 4.8 / 5, color: "#0f8a4b" },
+      { label: "Mineral Processing", valueLabel: "1.7", fraction: 1.7 / 5, color: "#d64545" },
+    ],
+    empty: "No scored divisions yet.",
+    axisLow: "0",
+    axisHigh: "5",
+  });
+  assert.equal(image.png.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  assert.equal(pngDimensions(image.png).width, image.width);
+  assert.equal(pngDimensions(image.png).height, image.height);
+  assert.equal(pngContainsColor(image.png, "#0f8a4b"), true);
+  assert.equal(pngContainsColor(image.png, "#d64545"), true);
+  assert.ok(image.width >= 900);
+  assert.ok(image.height > 80);
 });
 
 test("analysis division param keeps known division ids only", () => {

@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import Link from "next/link";
 import { TagPills } from "@/components/TagPills";
-import type { AnalysisGraphVisibility } from "@/lib/analysis-graphs";
+import { analysisChartGridClass, showManagersByDivision, type AnalysisGraphVisibility } from "@/lib/analysis-graphs";
 import { formatScore, scoreTone } from "@/lib/format";
 import type { OrganisationReport } from "@/lib/queries";
 import { tagById } from "@/lib/tags";
@@ -43,14 +43,12 @@ function OverviewCards({ report }: { report: OrganisationReport }) {
   const scoped = scopedDivision(report);
 
   return (
-    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Organisation overview">
+    <section className="grid grid-cols-1 gap-4 lg:grid-cols-3" aria-label="Organisation overview">
       <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04]">
         <div className="absolute inset-x-0 top-0 h-1 bg-accent" aria-hidden />
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Reviews</p>
         <p className="mt-2 text-[2rem] font-bold leading-none tracking-tight tabular-nums">{report.reviewCount}</p>
-        <p className="mt-2 text-sm text-muted">
-          {scoped ? `Anonymous scores in ${scoped.name}` : "Anonymous scores across Mintek"}
-        </p>
+        <p className="mt-2 text-sm text-muted">{scoped ? scoped.name : "Across Mintek"}</p>
       </div>
       <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04]">
         <div className="absolute inset-x-0 top-0 h-1" style={{ background: averageColor }} aria-hidden />
@@ -58,11 +56,9 @@ function OverviewCards({ report }: { report: OrganisationReport }) {
         <p className="mt-2 text-[2rem] font-bold leading-none tracking-tight tabular-nums" style={{ color: averageColor }}>
           {report.average === null ? "—" : formatScore(report.average)}
         </p>
-        <p className="mt-2 text-sm text-muted">
-          {scoped ? "Out of 5 in this division" : "Out of 5 across visible reviews"}
-        </p>
+        <p className="mt-2 text-sm text-muted">Out of 5</p>
       </div>
-      <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04] sm:col-span-2 xl:col-span-1">
+      <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04]">
         <div
           className="absolute inset-x-0 top-0 h-1"
           style={{ background: report.attention.length > 0 ? SCORE_FILL.bad : SCORE_FILL.good }}
@@ -109,11 +105,7 @@ function DivisionScoreChart({ report }: { report: OrganisationReport }) {
   return (
     <Panel
       title="Division scores"
-      subtitle={
-        scoped
-          ? `Average anonymous score for ${scoped.name}.`
-          : "Average anonymous score by division. Higher bars mean stronger feedback."
-      }
+      subtitle={scoped ? `Average score for ${scoped.name}.` : "Average score by division."}
     >
       <ul className="space-y-4" aria-label="Bar chart of average scores by division">
         {rows.map((division) => {
@@ -165,11 +157,7 @@ function AttentionPanel({ report }: { report: OrganisationReport }) {
   return (
     <Panel
       title="Needs attention"
-      subtitle={
-        scoped
-          ? `${scoped.name} averages under 2.5. Open a manager to read the words if Access allows it.`
-          : "Divisions with an average under 2.5. Open a manager to read the words if Access allows it."
-      }
+      subtitle={scoped ? `${scoped.name} averages under 2.5.` : "Divisions with an average under 2.5."}
     >
       <ul className="space-y-3">
         {report.attention.map((division) => {
@@ -201,9 +189,7 @@ function AttentionPanel({ report }: { report: OrganisationReport }) {
 
 function TraitFrequencyChart({ report }: { report: OrganisationReport }) {
   const scoped = scopedDivision(report);
-  const subtitle = scoped
-    ? `Most mentioned traits from anonymous reviews in ${scoped.name}.`
-    : "Most mentioned traits from anonymous reviews.";
+  const subtitle = scoped ? `Most mentioned traits in ${scoped.name}.` : "Most mentioned traits.";
   const rows = report.tagCounts.slice(0, 10);
   if (rows.length === 0) {
     return (
@@ -247,14 +233,7 @@ function TraitFrequencyChart({ report }: { report: OrganisationReport }) {
 function DivisionTable({ report }: { report: OrganisationReport }) {
   const scoped = scopedDivision(report);
   return (
-    <Panel
-      title="Division comparison"
-      subtitle={
-        scoped
-          ? `Managers, reviews, average, and leading traits in ${scoped.name}.`
-          : "Managers, reviews, averages, and leading traits."
-      }
-    >
+    <Panel title="Division comparison">
       <ul className="space-y-3 md:hidden">
         {report.divisions.map((division) => {
           const tone = division.average === null ? null : scoreTone(division.average);
@@ -390,46 +369,40 @@ export function AnalysisCharts({
     return (
       <section className="mt-6 rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04]">
         <h2 className="text-sm font-bold">No graphs selected</h2>
-        <p className="mt-1 text-sm leading-6 text-muted">
-          An administrator can turn Analysis graphs on from the Access page.
-        </p>
       </section>
     );
   }
 
+  const showManagers = showManagersByDivision(report.scopeDivisionId, visibility.managers);
+
   return (
     <div className="mt-6 min-w-0 space-y-6">
       {visibility.overview ? <OverviewCards report={report} /> : null}
-      {visibility["division-scores"] ? <DivisionScoreChart report={report} /> : null}
-      <MaybePair
-        at="xl"
-        first={visibility.attention ? <AttentionPanel report={report} /> : null}
-        second={visibility.traits ? <TraitFrequencyChart report={report} /> : null}
-      />
+      <ChartGrid>
+        {visibility["division-scores"] ? <DivisionScoreChart report={report} /> : null}
+        {visibility.attention ? <AttentionPanel report={report} /> : null}
+        {visibility.traits ? <TraitFrequencyChart report={report} /> : null}
+      </ChartGrid>
       {visibility["division-table"] ? <DivisionTable report={report} /> : null}
-      {visibility.managers ? <ManagersByDivision report={report} /> : null}
+      {showManagers ? (
+        <div data-managers-by-division={report.scopeDivisionId ?? ""}>
+          <ManagersByDivision report={report} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function MaybePair({
-  at,
-  first,
-  second,
-}: {
-  at: "lg" | "xl";
-  first: ReactNode;
-  second: ReactNode;
-}) {
-  if (!first && !second) return null;
-  if (first && second) {
-    const columns = at === "xl" ? "xl:grid-cols-2" : "lg:grid-cols-2";
-    return (
-      <div className={`grid min-w-0 items-start gap-6 ${columns}`}>
-        <div className="min-w-0">{first}</div>
-        <div className="min-w-0">{second}</div>
-      </div>
-    );
-  }
-  return <div className="min-w-0">{first || second}</div>;
+function ChartGrid({ children }: { children: ReactNode }) {
+  const items = Children.toArray(children);
+  if (items.length === 0) return null;
+  return (
+    <div className={analysisChartGridClass(items.length)} data-analysis-chart-grid={String(items.length)}>
+      {items.map((item, index) => (
+        <div key={index} className="min-w-0">
+          {item}
+        </div>
+      ))}
+    </div>
+  );
 }
