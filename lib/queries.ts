@@ -1,5 +1,5 @@
 import { getDb } from "./db";
-import { DIVISIONS } from "./divisions";
+import { DIVISIONS, divisionById } from "./divisions";
 import { reviewDate } from "./format";
 import { sortTagIds, tagById } from "./tags";
 import type { ValidReview } from "./validation";
@@ -72,6 +72,8 @@ export type OrganisationReport = {
   ratingMix: RatingBucket[];
   attention: { divisionId: string; name: string; average: number; reviewCount: number }[];
   divisions: DivisionReport[];
+  /** Null means every division. A division id limits the report to that division’s managers. */
+  scopeDivisionId: string | null;
 };
 
 export type InsertResult = { ok: true; managerId: string } | { ok: false; error: string };
@@ -290,8 +292,10 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
   };
 }
 
-export function organisationReport(): OrganisationReport {
-  const managers = listOrganisation(false);
+export function organisationReport(divisionId?: string | null): OrganisationReport {
+  const requested = typeof divisionId === "string" ? divisionId.trim() : "";
+  const scope = requested && divisionById(requested) ? requested : null;
+  const managers = listManagers(scope, "", false);
   const grouped = new Map<string, ManagerSummary[]>();
   for (const manager of managers) {
     const list = grouped.get(manager.divisionId) ?? [];
@@ -305,10 +309,10 @@ export function organisationReport(): OrganisationReport {
        FROM review_tags t
        JOIN reviews r ON r.id = t.review_id
        JOIN managers m ON m.id = r.manager_id
-       WHERE r.hidden = 0
+       WHERE r.hidden = 0 AND (? IS NULL OR m.division = ?)
        GROUP BY m.division, t.tag`,
     )
-    .all();
+    .all(scope, scope);
   const tagsByDivision = new Map<string, { id: string; count: number }[]>();
   for (const row of tagRows) {
     const division = text(row.division);
@@ -317,7 +321,8 @@ export function organisationReport(): OrganisationReport {
     tagsByDivision.set(division, list);
   }
 
-  const divisions = DIVISIONS.map((division) => {
+  const divisionList = scope ? DIVISIONS.filter((division) => division.id === scope) : DIVISIONS;
+  const divisions = divisionList.map((division) => {
     const group = grouped.get(division.id) ?? [];
     const reviewCount = group.reduce((sum, manager) => sum + manager.reviewCount, 0);
     const weighted = group.reduce(
@@ -368,12 +373,13 @@ export function organisationReport(): OrganisationReport {
 
   const ratingRows = getDb()
     .prepare(
-      `SELECT rating, COUNT(*) AS count
-       FROM reviews
-       WHERE hidden = 0
-       GROUP BY rating`,
+      `SELECT r.rating AS rating, COUNT(*) AS count
+       FROM reviews r
+       JOIN managers m ON m.id = r.manager_id
+       WHERE r.hidden = 0 AND (? IS NULL OR m.division = ?)
+       GROUP BY r.rating`,
     )
-    .all();
+    .all(scope, scope);
   const ratingCounts = new Map<number, number>();
   for (const row of ratingRows) ratingCounts.set(num(row.rating), num(row.count));
   const ratingMix: RatingBucket[] = ([1, 2, 3, 4, 5] as const).map((rating) => ({
@@ -388,6 +394,7 @@ export function organisationReport(): OrganisationReport {
     ratingMix,
     attention,
     divisions,
+    scopeDivisionId: scope,
   };
 }
 

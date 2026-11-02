@@ -37,3 +37,12 @@ export function divisionById(id: string): Division | undefined {
 export function divisionName(id: string): string {
   return byId.get(id)?.name ?? "Division";
 }
+
+/** Analysis filter. Unknown or empty values mean every division. */
+export function parseDivisionParam(value: string | string[] | undefined | null): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== "string") return null;
+  const id = raw.trim();
+  if (!id) return null;
+  return byId.get(id)?.id ?? null;
+}

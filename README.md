@@ -32,6 +32,8 @@ Colleagues see scores and traits for managers in their own division. They do not
 
 On the same Access page, the administrator picks which Analysis graphs are shown (overview totals, division scores, score mix, needs attention, trait frequency, the division table, and managers by division). A sensible default set is on so demos still show charts. People with Analysis access only see the graphs the administrator left enabled. Charts stay anonymous — they never name a reviewer.
 
+Analysis can be filtered by division. The Division menu on `/report` defaults to all divisions. Choosing one division limits every visible count, chart, and manager list to managers in that division. The choice stays in the link (`/report?division=pyrometallurgy`) so it can be shared or refreshed. The filter uses the manager’s division only. It does not identify who wrote a review.
+
 ## Review policy and moderation
 
 Posting a review requires accepting the review policy (see `/policy`). The form checkbox must be on before the server accepts the post.

@@ -12,6 +12,11 @@ const SCORE_FILL = {
   bad: "#d64545",
 } as const;
 
+function scopedDivision(report: OrganisationReport) {
+  if (!report.scopeDivisionId) return null;
+  return report.divisions.find((division) => division.divisionId === report.scopeDivisionId) ?? null;
+}
+
 const RATING_FILL: Record<1 | 2 | 3 | 4 | 5, string> = {
   1: "#d64545",
   2: "#e07a3a",
@@ -43,6 +48,7 @@ function Panel({
 function OverviewCards({ report }: { report: OrganisationReport }) {
   const averageTone = report.average === null ? null : scoreTone(report.average);
   const averageColor = averageTone ? SCORE_FILL[averageTone] : "var(--muted)";
+  const scoped = scopedDivision(report);
 
   return (
     <section className="grid gap-4 sm:grid-cols-3" aria-label="Organisation overview">
@@ -50,7 +56,9 @@ function OverviewCards({ report }: { report: OrganisationReport }) {
         <div className="absolute inset-x-0 top-0 h-1 bg-accent" aria-hidden />
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Reviews</p>
         <p className="mt-2 text-[2rem] font-bold leading-none tracking-tight tabular-nums">{report.reviewCount}</p>
-        <p className="mt-2 text-sm text-muted">Anonymous scores across Mintek</p>
+        <p className="mt-2 text-sm text-muted">
+          {scoped ? `Anonymous scores in ${scoped.name}` : "Anonymous scores across Mintek"}
+        </p>
       </div>
       <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04]">
         <div className="absolute inset-x-0 top-0 h-1" style={{ background: averageColor }} aria-hidden />
@@ -58,7 +66,9 @@ function OverviewCards({ report }: { report: OrganisationReport }) {
         <p className="mt-2 text-[2rem] font-bold leading-none tracking-tight tabular-nums" style={{ color: averageColor }}>
           {report.average === null ? "—" : formatScore(report.average)}
         </p>
-        <p className="mt-2 text-sm text-muted">Out of 5 across visible reviews</p>
+        <p className="mt-2 text-sm text-muted">
+          {scoped ? "Out of 5 in this division" : "Out of 5 across visible reviews"}
+        </p>
       </div>
       <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04]">
         <div
@@ -73,21 +83,31 @@ function OverviewCards({ report }: { report: OrganisationReport }) {
         >
           {report.attention.length}
         </p>
-        <p className="mt-2 text-sm text-muted">Divisions averaging under 2.5</p>
+        <p className="mt-2 text-sm text-muted">
+          {scoped
+            ? report.attention.length > 0
+              ? "This division averages under 2.5"
+              : "This division is at or above 2.5"
+            : "Divisions averaging under 2.5"}
+        </p>
       </div>
     </section>
   );
 }
 
 function DivisionScoreChart({ report }: { report: OrganisationReport }) {
+  const scoped = scopedDivision(report);
   const rows = report.divisions
     .filter((division) => division.reviewCount > 0 && division.average !== null)
     .sort((a, b) => (b.average ?? 0) - (a.average ?? 0) || a.name.localeCompare(b.name));
 
   if (rows.length === 0) {
     return (
-      <Panel title="Division scores" subtitle="Averages appear once a division has reviews.">
-        <p className="text-sm text-muted">No scored divisions yet.</p>
+      <Panel
+        title="Division scores"
+        subtitle={scoped ? `Averages appear once ${scoped.name} has reviews.` : "Averages appear once a division has reviews."}
+      >
+        <p className="text-sm text-muted">{scoped ? "No scored reviews in this division yet." : "No scored divisions yet."}</p>
       </Panel>
     );
   }
@@ -100,7 +120,14 @@ function DivisionScoreChart({ report }: { report: OrganisationReport }) {
   const height = rows.length * rowHeight + 28;
 
   return (
-    <Panel title="Division scores" subtitle="Average anonymous score by division. Higher bars mean stronger feedback.">
+    <Panel
+      title="Division scores"
+      subtitle={
+        scoped
+          ? `Average anonymous score for ${scoped.name}.`
+          : "Average anonymous score by division. Higher bars mean stronger feedback."
+      }
+    >
       <div className="overflow-x-auto">
         <svg
           role="img"
@@ -166,10 +193,14 @@ function DivisionScoreChart({ report }: { report: OrganisationReport }) {
 }
 
 function RatingMixChart({ report }: { report: OrganisationReport }) {
+  const scoped = scopedDivision(report);
   const total = report.ratingMix.reduce((sum, bucket) => sum + bucket.count, 0);
+  const mixSubtitle = scoped
+    ? `How reviews in ${scoped.name} land across the 1–5 scale.`
+    : "How reviews land across the 1–5 scale.";
   if (total === 0) {
     return (
-      <Panel title="Score mix" subtitle="How reviews land across the 1–5 scale.">
+      <Panel title="Score mix" subtitle={mixSubtitle}>
         <p className="text-sm text-muted">No reviews yet.</p>
       </Panel>
     );
@@ -186,7 +217,7 @@ function RatingMixChart({ report }: { report: OrganisationReport }) {
   const barWidth = (usable - barGap * 4) / 5;
 
   return (
-    <Panel title="Score mix" subtitle="Count of anonymous reviews on each score. No author is shown.">
+    <Panel title="Score mix" subtitle={`${mixSubtitle} No author is shown.`}>
       <div className="overflow-x-auto">
         <svg
           role="img"
@@ -244,12 +275,16 @@ function RatingMixChart({ report }: { report: OrganisationReport }) {
 }
 
 function AttentionPanel({ report }: { report: OrganisationReport }) {
+  const scoped = scopedDivision(report);
   if (report.attention.length === 0) {
     return (
-      <Panel title="Needs attention" subtitle="Divisions with an average under 2.5.">
+      <Panel
+        title="Needs attention"
+        subtitle={scoped ? `${scoped.name} is listed here when its average is under 2.5.` : "Divisions with an average under 2.5."}
+      >
         <div className="flex items-center gap-3 rounded-2xl bg-[#e7f6ee] px-4 py-3 text-sm font-semibold text-[#0f8a4b]">
           <span className="inline-flex size-2.5 rounded-full bg-[#0f8a4b]" aria-hidden />
-          No divisions are under the attention line right now.
+          {scoped ? `${scoped.name} is not under the attention line.` : "No divisions are under the attention line right now."}
         </div>
       </Panel>
     );
@@ -258,7 +293,14 @@ function AttentionPanel({ report }: { report: OrganisationReport }) {
   const worst = Math.min(...report.attention.map((division) => division.average));
 
   return (
-    <Panel title="Needs attention" subtitle="Divisions with an average under 2.5. Open a manager to read the words if Access allows it.">
+    <Panel
+      title="Needs attention"
+      subtitle={
+        scoped
+          ? `${scoped.name} averages under 2.5. Open a manager to read the words if Access allows it.`
+          : "Divisions with an average under 2.5. Open a manager to read the words if Access allows it."
+      }
+    >
       <ul className="space-y-3">
         {report.attention.map((division) => {
           const width = Math.max(12, (division.average / 5) * 100);
@@ -288,10 +330,14 @@ function AttentionPanel({ report }: { report: OrganisationReport }) {
 }
 
 function TraitFrequencyChart({ report }: { report: OrganisationReport }) {
+  const scoped = scopedDivision(report);
+  const subtitle = scoped
+    ? `Most mentioned traits from anonymous reviews in ${scoped.name}.`
+    : "Most mentioned traits from anonymous reviews.";
   const rows = report.tagCounts.slice(0, 10);
   if (rows.length === 0) {
     return (
-      <Panel title="Trait frequency" subtitle="Most mentioned traits from anonymous reviews.">
+      <Panel title="Trait frequency" subtitle={subtitle}>
         <p className="text-sm text-muted">No traits yet.</p>
       </Panel>
     );
@@ -300,7 +346,7 @@ function TraitFrequencyChart({ report }: { report: OrganisationReport }) {
   const max = Math.max(...rows.map((tag) => tag.count), 1);
 
   return (
-    <Panel title="Trait frequency" subtitle="Most mentioned traits from anonymous reviews.">
+    <Panel title="Trait frequency" subtitle={subtitle}>
       <ul className="space-y-3">
         {rows.map((item) => {
           const tag = tagById(item.id);
@@ -329,8 +375,16 @@ function TraitFrequencyChart({ report }: { report: OrganisationReport }) {
 }
 
 function DivisionTable({ report }: { report: OrganisationReport }) {
+  const scoped = scopedDivision(report);
   return (
-    <Panel title="Division comparison" subtitle="Managers, reviews, averages, and leading traits.">
+    <Panel
+      title="Division comparison"
+      subtitle={
+        scoped
+          ? `Managers, reviews, average, and leading traits in ${scoped.name}.`
+          : "Managers, reviews, averages, and leading traits."
+      }
+    >
       <div className="-mx-5 overflow-x-auto md:-mx-6">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="text-muted">
