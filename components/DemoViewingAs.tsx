@@ -1,6 +1,6 @@
 import { previewPersona } from "@/app/actions";
 import type { Viewer } from "@/lib/directory";
-import { demoPersona, personaHeadline, personaSummary } from "@/lib/persona";
+import { demoPersona, personaHeadline } from "@/lib/persona";
 
 function PersonaButton({
   value,
@@ -47,7 +47,6 @@ export function DemoViewingAs({ viewer }: { viewer: Viewer }) {
         <div className="min-w-0">
           <p className="text-[11px] font-bold tracking-[0.14em] text-muted uppercase">Demo · viewing as</p>
           <p className="mt-0.5 text-lg font-bold tracking-tight text-ink">{personaHeadline(viewer)}</p>
-          <p className="mt-0.5 text-sm leading-5 text-muted">{personaSummary(viewer)}</p>
         </div>
         <form action={previewPersona} className="flex flex-wrap items-center gap-2">
           <PersonaButton value="colleague" label="Colleague" active={!isAdmin} tone="colleague" />

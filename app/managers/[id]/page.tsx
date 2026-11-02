@@ -73,10 +73,7 @@ export default async function ManagerPage({
       </Link>
 
       {posted === "1" ? (
-        <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-accent ring-1 ring-accent/20">
-          Review posted. Only the score, the words, and the day were stored. Your name was not stored. Comments stay
-          closed unless an administrator grants access.
-        </p>
+        <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm text-accent ring-1 ring-accent/20">Review posted.</p>
       ) : null}
 
       <section className="mt-4 rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04] md:p-8">
@@ -128,24 +125,6 @@ export default async function ManagerPage({
 
       <section className="mt-6 space-y-8">
         <h2 className="text-lg font-bold">{showComments ? "Reviews" : "Review scores"}</h2>
-        {!showComments ? (
-          <p className="rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
-            Scores and traits are visible in your division. Written comments stay closed unless an administrator (HR)
-            grants access. See the{" "}
-            <Link href="/policy" className="font-semibold text-accent">
-              review policy
-            </Link>
-            .
-          </p>
-        ) : (
-          <p className="rounded-2xl bg-white px-4 py-3 text-sm leading-6 text-muted ring-1 ring-line">
-            If a review breaks the{" "}
-            <Link href="/policy" className="font-semibold text-accent">
-              review policy
-            </Link>
-            , you may hide it. Hiding does not reveal who wrote it.
-          </p>
-        )}
         {manager.reviews.length === 0 ? (
           <p className="text-sm text-muted">No reviews yet.</p>
         ) : (
