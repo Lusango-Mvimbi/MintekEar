@@ -27,7 +27,7 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[22px] bg-white p-5 ring-1 ring-black/[0.04] md:p-6">
+    <section className="min-w-0 rounded-[22px] bg-white p-5 ring-1 ring-black/[0.04] md:p-6">
       <header className="mb-5">
         <h2 className="text-[15px] font-bold tracking-tight text-ink">{title}</h2>
         {subtitle ? <p className="mt-1 text-sm leading-6 text-muted">{subtitle}</p> : null}
@@ -43,7 +43,7 @@ function OverviewCards({ report }: { report: OrganisationReport }) {
   const scoped = scopedDivision(report);
 
   return (
-    <section className="grid gap-4 sm:grid-cols-3" aria-label="Organisation overview">
+    <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Organisation overview">
       <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04]">
         <div className="absolute inset-x-0 top-0 h-1 bg-accent" aria-hidden />
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Reviews</p>
@@ -62,7 +62,7 @@ function OverviewCards({ report }: { report: OrganisationReport }) {
           {scoped ? "Out of 5 in this division" : "Out of 5 across visible reviews"}
         </p>
       </div>
-      <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04]">
+      <div className="relative overflow-hidden rounded-[22px] bg-white p-6 ring-1 ring-black/[0.04] sm:col-span-2 xl:col-span-1">
         <div
           className="absolute inset-x-0 top-0 h-1"
           style={{ background: report.attention.length > 0 ? SCORE_FILL.bad : SCORE_FILL.good }}
@@ -105,11 +105,6 @@ function DivisionScoreChart({ report }: { report: OrganisationReport }) {
   }
 
   const max = 5;
-  const rowHeight = 44;
-  const labelWidth = 168;
-  const chartWidth = 640;
-  const barMax = chartWidth - labelWidth - 72;
-  const height = rows.length * rowHeight + 28;
 
   return (
     <Panel
@@ -120,65 +115,30 @@ function DivisionScoreChart({ report }: { report: OrganisationReport }) {
           : "Average anonymous score by division. Higher bars mean stronger feedback."
       }
     >
-      <div className="overflow-x-auto">
-        <svg
-          role="img"
-          aria-label="Bar chart of average scores by division"
-          viewBox={`0 0 ${chartWidth} ${height}`}
-          className="h-auto w-full min-w-[520px]"
-        >
-          {[1, 2, 3, 4, 5].map((tick) => {
-            const x = labelWidth + (tick / max) * barMax;
-            return (
-              <g key={tick}>
-                <line x1={x} y1={0} x2={x} y2={height - 22} stroke="var(--line)" strokeWidth="1" />
-                <text x={x} y={height - 6} textAnchor="middle" className="fill-[var(--muted)] text-[11px]">
-                  {tick}
-                </text>
-              </g>
-            );
-          })}
-          {rows.map((division, index) => {
-            const average = division.average as number;
-            const tone = scoreTone(average);
-            const y = index * rowHeight + 8;
-            const width = Math.max(8, (average / max) * barMax);
-            return (
-              <g key={division.divisionId}>
-                <text
-                  x={0}
-                  y={y + 18}
-                  className="fill-[var(--ink)] text-[12px] font-semibold"
-                >
-                  {division.name.length > 22 ? `${division.name.slice(0, 20)}…` : division.name}
-                </text>
-                <rect
-                  x={labelWidth}
-                  y={y + 4}
-                  width={barMax}
-                  height={22}
-                  rx={11}
-                  fill="var(--paper)"
+      <ul className="space-y-4" aria-label="Bar chart of average scores by division">
+        {rows.map((division) => {
+          const average = division.average as number;
+          const tone = scoreTone(average);
+          const width = Math.max(8, (average / max) * 100);
+          return (
+            <li key={division.divisionId} className="min-w-0">
+              <div className="mb-1.5 flex items-start justify-between gap-3">
+                <span className="min-w-0 text-sm leading-5 font-semibold break-words text-ink">{division.name}</span>
+                <span className="shrink-0 text-sm font-bold tabular-nums">{formatScore(average)}</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-paper">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${width}%`, background: SCORE_FILL[tone] }}
                 />
-                <rect
-                  x={labelWidth}
-                  y={y + 4}
-                  width={width}
-                  height={22}
-                  rx={11}
-                  fill={SCORE_FILL[tone]}
-                />
-                <text
-                  x={labelWidth + width + 10}
-                  y={y + 19}
-                  className="fill-[var(--ink)] text-[12px] font-bold"
-                >
-                  {formatScore(average)}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-3 flex justify-between text-[11px] font-semibold text-muted" aria-hidden>
+        <span>0</span>
+        <span>5</span>
       </div>
     </Panel>
   );
@@ -217,7 +177,7 @@ function AttentionPanel({ report }: { report: OrganisationReport }) {
           return (
             <li key={division.divisionId} className="rounded-2xl bg-[#fdecee]/70 px-4 py-3 ring-1 ring-[#d64545]/15">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-semibold text-ink">{division.name}</span>
+                <span className="min-w-0 font-semibold break-words text-ink">{division.name}</span>
                 <span className="text-sm font-semibold text-[#d64545]">
                   {formatScore(division.average)} · {division.reviewCount}{" "}
                   {division.reviewCount === 1 ? "review" : "reviews"}
@@ -295,8 +255,43 @@ function DivisionTable({ report }: { report: OrganisationReport }) {
           : "Managers, reviews, averages, and leading traits."
       }
     >
-      <div className="-mx-5 overflow-x-auto md:-mx-6">
-        <table className="w-full min-w-[640px] text-left text-sm">
+      <ul className="space-y-3 md:hidden">
+        {report.divisions.map((division) => {
+          const tone = division.average === null ? null : scoreTone(division.average);
+          return (
+            <li key={division.divisionId} className="min-w-0 rounded-2xl bg-paper/70 px-4 py-3">
+              <p className="font-semibold break-words text-ink">{division.name}</p>
+              <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
+                <div>
+                  <dt className="text-xs text-muted">Managers</dt>
+                  <dd className="font-semibold tabular-nums">{division.managerCount}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted">Reviews</dt>
+                  <dd className="font-semibold tabular-nums">{division.reviewCount}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted">Average</dt>
+                  <dd>
+                    {division.average === null ? (
+                      <span className="text-muted">—</span>
+                    ) : (
+                      <span className="font-semibold tabular-nums" style={{ color: tone ? SCORE_FILL[tone] : undefined }}>
+                        {formatScore(division.average)}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-2">
+                <TagPills tags={division.tagCounts.slice(0, 3)} />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="-mx-5 hidden overflow-x-auto md:-mx-6 md:block">
+        <table className="w-full text-left text-sm">
           <thead className="text-muted">
             <tr className="border-b border-line">
               <th className="px-5 py-3 font-semibold md:px-6">Division</th>
@@ -311,7 +306,7 @@ function DivisionTable({ report }: { report: OrganisationReport }) {
               const tone = division.average === null ? null : scoreTone(division.average);
               return (
                 <tr key={division.divisionId} className="border-b border-line/80 align-top last:border-0">
-                  <th className="px-5 py-3 font-semibold text-ink md:px-6">{division.name}</th>
+                  <th className="px-5 py-3 font-semibold break-words text-ink md:px-6">{division.name}</th>
                   <td className="px-4 py-3 tabular-nums">{division.managerCount}</td>
                   <td className="px-4 py-3 tabular-nums">{division.reviewCount}</td>
                   <td className="px-4 py-3">
@@ -341,7 +336,7 @@ function ManagersByDivision({ report }: { report: OrganisationReport }) {
   if (divisions.length === 0) return null;
 
   return (
-    <div className="space-y-6">
+    <div className={divisions.length > 1 ? "grid gap-6 xl:grid-cols-2" : "space-y-6"}>
       {divisions.map((division) => (
         <Panel
           key={division.divisionId}
@@ -354,13 +349,13 @@ function ManagersByDivision({ report }: { report: OrganisationReport }) {
                 }`
           }
         >
-          <ul className="divide-y divide-line/80">
+          <ul className="min-w-0">
             {division.managers.map((manager) => {
               const tone = manager.average === null ? null : scoreTone(manager.average);
               return (
-                <li key={manager.id} className="flex flex-wrap items-baseline justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                <li key={manager.id} className="flex min-w-0 flex-wrap items-baseline justify-between gap-2 border-b border-line/80 py-3 last:border-0">
                   <div>
-                    <Link href={`/managers/${manager.id}`} className="font-bold text-ink hover:text-accent">
+                    <Link href={`/managers/${manager.id}`} className="font-bold break-words text-ink hover:text-accent">
                       {manager.name}
                     </Link>
                     <p className="mt-0.5 text-sm text-muted">{manager.title}</p>
@@ -403,13 +398,38 @@ export function AnalysisCharts({
   }
 
   return (
-    <div className="mt-6 space-y-6">
+    <div className="mt-6 min-w-0 space-y-6">
       {visibility.overview ? <OverviewCards report={report} /> : null}
       {visibility["division-scores"] ? <DivisionScoreChart report={report} /> : null}
-      {visibility.attention ? <AttentionPanel report={report} /> : null}
-      {visibility.traits ? <TraitFrequencyChart report={report} /> : null}
+      <MaybePair
+        at="xl"
+        first={visibility.attention ? <AttentionPanel report={report} /> : null}
+        second={visibility.traits ? <TraitFrequencyChart report={report} /> : null}
+      />
       {visibility["division-table"] ? <DivisionTable report={report} /> : null}
       {visibility.managers ? <ManagersByDivision report={report} /> : null}
     </div>
   );
+}
+
+function MaybePair({
+  at,
+  first,
+  second,
+}: {
+  at: "lg" | "xl";
+  first: ReactNode;
+  second: ReactNode;
+}) {
+  if (!first && !second) return null;
+  if (first && second) {
+    const columns = at === "xl" ? "xl:grid-cols-2" : "lg:grid-cols-2";
+    return (
+      <div className={`grid min-w-0 items-start gap-6 ${columns}`}>
+        <div className="min-w-0">{first}</div>
+        <div className="min-w-0">{second}</div>
+      </div>
+    );
+  }
+  return <div className="min-w-0">{first || second}</div>;
 }

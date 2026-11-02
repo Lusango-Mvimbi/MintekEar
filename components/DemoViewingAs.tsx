@@ -43,7 +43,7 @@ export function DemoViewingAs({ viewer }: { viewer: Viewer }) {
         isAdmin ? "border-[#d22d20]/25 bg-[#fdecee]" : "border-[#194d5c]/20 bg-[#e8f1f3]"
       }`}
     >
-      <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
+      <div className="mx-auto flex w-full min-w-0 max-w-[1040px] flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between xl:max-w-7xl 2xl:max-w-[1440px]">
         <div className="min-w-0">
           <p className="text-[11px] font-bold tracking-[0.14em] text-muted uppercase">Demo · viewing as</p>
           <p className="mt-0.5 text-lg font-bold tracking-tight text-ink">{personaHeadline(viewer)}</p>

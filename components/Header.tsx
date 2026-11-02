@@ -12,7 +12,7 @@ export async function Header() {
 
   return (
     <header className="border-b border-line/80 bg-white print:hidden">
-      <div className="mx-auto flex w-full max-w-[1040px] flex-wrap items-center justify-between gap-4 px-4 py-4">
+      <div className="mx-auto flex w-full min-w-0 max-w-[1040px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:gap-4 xl:max-w-7xl 2xl:max-w-[1440px]">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           <img src={company.logo} alt="" className="h-12 w-auto" />
           <span className="min-w-0">
@@ -23,7 +23,7 @@ export async function Header() {
             </span>
           </span>
         </Link>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
           {viewer.source === "preview" && viewer.divisionId && !viewer.hrDivision ? (
             <DivisionSelect divisions={DIVISIONS} current={viewer.divisionId} />
           ) : null}
@@ -42,7 +42,7 @@ export async function Header() {
           ) : null}
           <Link
             href="/review"
-            className="shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="shrink-0 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-sm:ml-auto"
           >
             Write a review
           </Link>

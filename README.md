@@ -34,6 +34,8 @@ On the same Access page, the administrator picks which Analysis graphs are shown
 
 Analysis can be filtered by division. The Division menu on `/report` defaults to all divisions. Choosing one division limits every visible count, chart, and manager list to managers in that division. The choice stays in the link (`/report?division=pyrometallurgy`) so it can be shared or refreshed. The filter uses the manager’s division only. It does not identify who wrote a review.
 
+People who may download reports and also read comments — including every administrator (HR) — can download that same view as an Excel workbook. The file follows the division filter: one division, or every division. It has a summary, division totals, each manager, and each review, including the comment, traits, score, date, and whether the review is hidden. Averages still ignore hidden reviews. The workbook does not name a reviewer and does not include a staff number, IP address, or device. Download on its own is not enough, because the file contains the words. The file is `GET /report/export`, with `?division=` when one division is selected.
+
 ## Review policy and moderation
 
 Posting a review requires accepting the review policy (see `/policy`). The form checkbox must be on before the server accepts the post.

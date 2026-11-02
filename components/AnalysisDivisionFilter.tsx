@@ -17,7 +17,7 @@ export function AnalysisDivisionFilter({
   }
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
       <label htmlFor="analysis-division" className="text-xs font-bold tracking-wide text-muted uppercase">
         Division
       </label>
@@ -26,7 +26,7 @@ export function AnalysisDivisionFilter({
         name="division"
         value={current}
         onChange={(event) => apply(event.target.value)}
-        className="max-w-[280px] rounded-full border border-line bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-accent"
+        className="w-full min-w-0 max-w-full rounded-full border border-line bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-accent sm:w-auto sm:min-w-56 sm:max-w-xs"
       >
         <option value="">All divisions</option>
         {divisions.map((division) => (

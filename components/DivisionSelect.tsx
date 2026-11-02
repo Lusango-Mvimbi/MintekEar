@@ -5,7 +5,7 @@ import type { Division } from "@/lib/divisions";
 
 export function DivisionSelect({ divisions, current }: { divisions: readonly Division[]; current: string }) {
   return (
-    <form action={previewDivision} className="flex min-w-0 items-center gap-2">
+    <form action={previewDivision} className="flex min-w-0 max-w-full items-center gap-2">
       <span className="hidden text-xs font-bold tracking-wide text-muted uppercase sm:inline">Demo preview</span>
       <label className="sr-only" htmlFor="division">
         Demo preview division
@@ -15,7 +15,7 @@ export function DivisionSelect({ divisions, current }: { divisions: readonly Div
         name="division"
         defaultValue={current}
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
-        className="max-w-[220px] rounded-full border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+        className="w-[min(100%,12.5rem)] max-w-full min-w-0 truncate rounded-full border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-accent"
       >
         {divisions.map((division) => (
           <option key={division.id} value={division.id}>

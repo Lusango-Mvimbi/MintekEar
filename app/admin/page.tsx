@@ -107,7 +107,7 @@ export default async function AdminPage({
           action={saveAnalysisGraphs}
           className="mt-4 rounded-[22px] bg-white p-5 ring-1 ring-black/[0.04] md:p-6"
         >
-          <fieldset className="space-y-4">
+          <fieldset className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <legend className="sr-only">Visible Analysis graphs</legend>
             {ANALYSIS_GRAPHS.map((graph) => (
               <label
@@ -128,10 +128,10 @@ export default async function AdminPage({
               </label>
             ))}
           </fieldset>
-          <div className="mt-5 flex justify-end">
+          <div className="mt-5 flex sm:justify-end">
             <button
               type="submit"
-              className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+              className="w-full rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark sm:w-auto"
             >
               Save graphs
             </button>
@@ -188,13 +188,13 @@ function PersonAccess({ person, onlyAdmin }: { person: HrStaff; onlyAdmin: boole
               Colleague. Promote them to Administrator (HR) for the same access you have.
             </p>
           </div>
-          <form action={saveHrRole} className="shrink-0">
+          <form action={saveHrRole} className="w-full shrink-0 sm:w-auto">
             <input type="hidden" name="staffId" value={person.staffId} />
             <input type="hidden" name="role" value="administrator" />
             <button
               type="submit"
               aria-label={`Make ${person.displayName} an administrator`}
-              className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+              className="w-full rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark sm:w-auto"
             >
               Make administrator
             </button>

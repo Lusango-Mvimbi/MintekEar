@@ -1,5 +1,5 @@
 import { getDb } from "./db";
-import { DIVISIONS, divisionById } from "./divisions";
+import { DIVISIONS, divisionById, divisionName } from "./divisions";
 import { reviewDate } from "./format";
 import { sortTagIds, tagById } from "./tags";
 import type { ValidReview } from "./validation";
@@ -74,6 +74,20 @@ export type OrganisationReport = {
   divisions: DivisionReport[];
   /** Null means every division. A division id limits the report to that division’s managers. */
   scopeDivisionId: string | null;
+};
+
+/** Anonymous review row for the Excel export. No reviewer, IP, or device fields. */
+export type ReviewExportRow = {
+  managerId: string;
+  managerName: string;
+  managerTitle: string;
+  divisionId: string;
+  divisionName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  traits: string[];
+  hidden: boolean;
 };
 
 export type InsertResult = { ok: true; managerId: string } | { ok: false; error: string };
@@ -292,9 +306,14 @@ export function getManager(id: string, access: ReviewAccess): ManagerDetail | nu
   };
 }
 
-export function organisationReport(divisionId?: string | null): OrganisationReport {
+function scopeDivision(divisionId?: string | null): string | null {
   const requested = typeof divisionId === "string" ? divisionId.trim() : "";
-  const scope = requested && divisionById(requested) ? requested : null;
+  if (!requested || !divisionById(requested)) return null;
+  return requested;
+}
+
+export function organisationReport(divisionId?: string | null): OrganisationReport {
+  const scope = scopeDivision(divisionId);
   const managers = listManagers(scope, "", false);
   const grouped = new Map<string, ManagerSummary[]>();
   for (const manager of managers) {
@@ -400,6 +419,49 @@ export function organisationReport(divisionId?: string | null): OrganisationRepo
 
 function scoreNeedsAttention(average: number): boolean {
   return average < 2.5;
+}
+
+/**
+ * Every review in the department scope, including hidden ones, for a privileged Excel download.
+ * The select list is the manager, the division, the score, the words, the traits, the day, and the hidden flag.
+ */
+export function listReviewsForExport(divisionId?: string | null): ReviewExportRow[] {
+  const scope = scopeDivision(divisionId);
+  const rows = getDb()
+    .prepare(
+      `SELECT
+         r.id AS id,
+         r.rating AS rating,
+         r.body AS body,
+         r.created_at AS created_at,
+         r.hidden AS hidden,
+         m.id AS manager_id,
+         m.name AS manager_name,
+         m.title AS manager_title,
+         m.division AS division_id
+       FROM reviews r
+       JOIN managers m ON m.id = r.manager_id
+       WHERE (? IS NULL OR m.division = ?)
+       ORDER BY m.division COLLATE NOCASE, m.name COLLATE NOCASE, r.hidden ASC, r.created_at DESC, r.id DESC`,
+    )
+    .all(scope, scope);
+  const tags = tagsFor(rows.map((row) => text(row.id)));
+  return rows.map((row) => {
+    const reviewId = text(row.id);
+    const divisionIdValue = text(row.division_id);
+    return {
+      managerId: text(row.manager_id),
+      managerName: text(row.manager_name),
+      managerTitle: text(row.manager_title),
+      divisionId: divisionIdValue,
+      divisionName: divisionName(divisionIdValue),
+      rating: num(row.rating),
+      comment: text(row.body),
+      createdAt: text(row.created_at),
+      traits: (tags.get(reviewId) ?? []).map((tagId) => tagById(tagId)?.label ?? tagId),
+      hidden: num(row.hidden) === 1,
+    };
+  });
 }
 
 export function setReviewHidden(
