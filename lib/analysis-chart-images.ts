@@ -32,9 +32,7 @@ export function analysisChartSpecs(report: OrganisationReport): BarChartSpec[] {
 
   const divisionScores: BarChartSpec = {
     title: "Division scores",
-    subtitle: scoped
-      ? `Average anonymous score for ${scoped}.`
-      : "Average anonymous score by division. Higher bars mean stronger feedback.",
+    subtitle: scoped ? `Average score for ${scoped}.` : "Average score by division.",
     bars: divisionRows.map((division) => {
       const average = division.average as number;
       return {
@@ -86,9 +84,7 @@ export function analysisChartSpecs(report: OrganisationReport): BarChartSpec[] {
   const traitMax = Math.max(...traitRows.map((row) => row.item.count), 1);
   const traits: BarChartSpec = {
     title: "Trait frequency",
-    subtitle: scoped
-      ? `Most mentioned traits from anonymous reviews in ${scoped}.`
-      : "Most mentioned traits from anonymous reviews.",
+    subtitle: scoped ? `Most mentioned traits in ${scoped}.` : "Most mentioned traits.",
     bars: traitRows.map(({ item, tag }) => ({
       label: tag.label,
       valueLabel: String(item.count),

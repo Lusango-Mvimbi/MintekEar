@@ -15,11 +15,9 @@ const minBody = 20;
 export function ReviewForm({
   managers,
   initialManagerId,
-  divisionName,
 }: {
   managers: ManagerOption[];
   initialManagerId?: string;
-  divisionName: string;
 }) {
   const knownManager = managers.some((manager) => manager.id === initialManagerId);
   const [state, formAction, pending] = useActionState(submitReview, initialState);
@@ -68,10 +66,6 @@ export function ReviewForm({
   return (
     <form action={formAction} className="rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04] md:p-8">
       <h1 className="text-2xl font-bold tracking-tight">Write a review</h1>
-      <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
-        Choose a manager in {divisionName}. Only people already listed in this division appear. The review stores the
-        score, the words, and the day. It does not store who wrote it or which computer it came from.
-      </p>
 
       {state.error ? (
         <p role="alert" className="mt-5 rounded-2xl bg-[#fdecee] px-4 py-3 text-sm font-medium text-[#d64545]">
@@ -81,10 +75,6 @@ export function ReviewForm({
 
       <fieldset className="mt-8">
         <legend className="text-sm font-bold">Who is this about?</legend>
-        <p className="mt-1 text-sm text-muted">
-          Pick from the list for {divisionName}, or type a name to narrow it. You cannot add someone who is not already
-          listed.
-        </p>
         <label className="mt-4 block text-sm font-medium">
           Search by name
           <input

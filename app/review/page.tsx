@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { ReviewForm } from "@/components/ReviewForm";
 import { getViewer } from "@/lib/directory";
-import { divisionName } from "@/lib/divisions";
 import { listManagerOptions } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +18,6 @@ export default async function ReviewPage({
   const manager = typeof params.manager === "string" ? params.manager : undefined;
   const managers = listManagerOptions(viewer.divisionId);
   return (
-    <ReviewForm
-      managers={managers}
-      initialManagerId={manager}
-      divisionName={divisionName(viewer.divisionId)}
-    />
+    <ReviewForm managers={managers} initialManagerId={manager} />
   );
 }
