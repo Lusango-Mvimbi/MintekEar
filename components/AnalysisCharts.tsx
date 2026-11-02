@@ -4,7 +4,7 @@ import { TagPills } from "@/components/TagPills";
 import { analysisChartGridClass, showManagersByDivision, type AnalysisGraphVisibility } from "@/lib/analysis-graphs";
 import { formatScore, scoreTone } from "@/lib/format";
 import type { OrganisationReport } from "@/lib/queries";
-import { tagById } from "@/lib/tags";
+import { displayTrait } from "@/lib/tags";
 
 const SCORE_FILL = {
   good: "#0f8a4b",
@@ -219,9 +219,10 @@ function TraitFrequencyChart({ report }: { report: OrganisationReport }) {
     <Panel title="Trait frequency" subtitle={subtitle}>
       <ul className="space-y-3">
         {rows.map((item) => {
-          const tag = tagById(item.id);
+          const tag = displayTrait(item.id);
           if (!tag) return null;
-          const positive = tag.tone === "positive";
+          const bar =
+            tag.tone === "positive" ? "bg-[#0f8a4b]" : tag.tone === "negative" ? "bg-[#d64545]" : "bg-[#5e828d]";
           const width = Math.max(8, (item.count / max) * 100);
           return (
             <li key={item.id}>
@@ -230,11 +231,7 @@ function TraitFrequencyChart({ report }: { report: OrganisationReport }) {
                 <span className="tabular-nums text-muted">{item.count}</span>
               </div>
               <div className="h-2.5 overflow-hidden rounded-full bg-paper">
-                <div
-                  className={`h-full rounded-full ${positive ? "bg-[#0f8a4b]" : "bg-[#d64545]"}`}
-                  style={{ width: `${width}%` }}
-                  aria-hidden
-                />
+                <div className={`h-full rounded-full ${bar}`} style={{ width: `${width}%` }} aria-hidden />
               </div>
             </li>
           );

@@ -29,12 +29,50 @@ test("rejects a review that does not name a listed manager", () => {
   if (!result.ok && !result.spam) assert.match(result.error, /division/);
 });
 
-test("rejects a short review, a bad score, and an unknown trait", () => {
+test("rejects a short review and a bad score", () => {
   assert.equal(validateReview(draft({ body: "Too short" })).ok, false);
   assert.equal(validateReview(draft({ rating: 0 })).ok, false);
-  const unknown = validateReview(draft({ tags: ["invented"] }));
-  assert.equal(unknown.ok, false);
-  if (!unknown.ok && !unknown.spam) assert.match(unknown.error, /traits/);
+});
+
+test("accepts a custom trait of one or two words and collapses spaces", () => {
+  const result = validateReview(draft({ tags: ["  Keeps   promises  ", "Punctual", "punctual"] }));
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.value.tags, ["Keeps promises", "Punctual"]);
+});
+
+test("maps a typed preset, including a three-word label, onto its id", () => {
+  const result = validateReview(draft({ tags: ["Clear communicator", "Protects the team", "fair"] }));
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.value.tags, ["clear-communicator", "protects-team", "fair"]);
+});
+
+test("rejects a custom trait of more than two words", () => {
+  const result = validateReview(draft({ tags: ["takes all credit"] }));
+  assert.equal(result.ok, false);
+  if (!result.ok && !result.spam) assert.equal(result.error, "Use at most two words.");
+});
+
+test("rejects an empty or punctuation-only custom trait", () => {
+  const empty = validateReview(draft({ tags: ["   "] }));
+  assert.equal(empty.ok, false);
+  if (!empty.ok && !empty.spam) assert.equal(empty.error, "Enter a trait.");
+  const marks = validateReview(draft({ tags: ["???"] }));
+  assert.equal(marks.ok, false);
+  if (!marks.ok && !marks.spam) assert.equal(marks.error, "Use letters and numbers.");
+});
+
+test("rejects a custom trait that is too long", () => {
+  const result = validateReview(draft({ tags: ["Supercalifragilisticexpialidocious leader"] }));
+  assert.equal(result.ok, false);
+  if (!result.ok && !result.spam) assert.equal(result.error, "That trait is too long.");
+});
+
+test("rejects more than six traits", () => {
+  const result = validateReview(
+    draft({ tags: ["fair", "supportive", "low-ego", "gives-feedback", "Punctual", "Kind", "Calm"] }),
+  );
+  assert.equal(result.ok, false);
+  if (!result.ok && !result.spam) assert.equal(result.error, "Choose up to 6 traits.");
 });
 
 test("treats a filled honeypot as spam", () => {

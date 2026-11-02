@@ -1,7 +1,7 @@
 import { getDb } from "./db";
 import { DIVISIONS, divisionById, divisionName } from "./divisions";
 import { reviewDate } from "./format";
-import { sortTagIds, tagById } from "./tags";
+import { displayTrait, sortTagIds } from "./tags";
 import type { ValidReview } from "./validation";
 
 export type ReviewAccess = {
@@ -349,7 +349,7 @@ export function organisationReport(divisionId?: string | null): OrganisationRepo
       0,
     );
     const tagCounts = (tagsByDivision.get(division.id) ?? [])
-      .filter((tag) => tagById(tag.id))
+      .filter((tag) => displayTrait(tag.id))
       .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
     return {
       divisionId: division.id,
@@ -375,7 +375,7 @@ export function organisationReport(divisionId?: string | null): OrganisationRepo
   }
   const tagCounts = [...orgTags.entries()]
     .map(([id, count]) => ({ id, count }))
-    .filter((tag) => tagById(tag.id))
+    .filter((tag) => displayTrait(tag.id))
     .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
   const attention = divisions
     .filter(
@@ -458,7 +458,7 @@ export function listReviewsForExport(divisionId?: string | null): ReviewExportRo
       rating: num(row.rating),
       comment: text(row.body),
       createdAt: text(row.created_at),
-      traits: (tags.get(reviewId) ?? []).map((tagId) => tagById(tagId)?.label ?? tagId),
+      traits: (tags.get(reviewId) ?? []).map((tagId) => displayTrait(tagId)?.label ?? tagId),
       hidden: num(row.hidden) === 1,
     };
   });

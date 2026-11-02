@@ -6,7 +6,7 @@ import { submitReview, type SubmitState } from "@/app/actions";
 import { verdictLabel } from "@/lib/format";
 import { POLICY_ACCEPT_LABEL, POLICY_SHORT } from "@/lib/policy";
 import type { ManagerOption } from "@/lib/queries";
-import { TAGS } from "@/lib/tags";
+import { TAGS, parseTrait, tagById } from "@/lib/tags";
 import { StarIcon } from "./icons";
 
 const initialState: SubmitState = {};
@@ -27,6 +27,7 @@ export function ReviewForm({
   const [managerId, setManagerId] = useState(knownManager ? initialManagerId ?? "" : "");
   const [rating, setRating] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
+  const [customDraft, setCustomDraft] = useState("");
   const [body, setBody] = useState("");
   const [tagNote, setTagNote] = useState("");
   const [policyAccepted, setPolicyAccepted] = useState(false);
@@ -45,6 +46,27 @@ export function ReviewForm({
       return [...current, id];
     });
   }
+
+  function addCustomTrait() {
+    const parsed = parseTrait(customDraft);
+    if (!parsed.ok) {
+      setTagNote(parsed.error);
+      return;
+    }
+    if (tags.some((tag) => tag.toLocaleLowerCase() === parsed.id.toLocaleLowerCase())) {
+      setTagNote("Already added.");
+      return;
+    }
+    if (tags.length >= 6) {
+      setTagNote("Choose up to 6 traits.");
+      return;
+    }
+    setTagNote("");
+    setTags([...tags, parsed.id]);
+    setCustomDraft("");
+  }
+
+  const customTags = tags.filter((tag) => !tagById(tag));
 
   const selected = managers.find((manager) => manager.id === managerId);
   const needle = query.trim().toLowerCase();
@@ -198,10 +220,64 @@ export function ReviewForm({
             </div>
           </div>
         ))}
+        <div className="mt-4">
+          <label htmlFor="custom-trait" className="text-xs font-bold tracking-wide text-muted uppercase">
+            Add your own
+          </label>
+          <div className="mt-2 flex gap-2">
+            <input
+              id="custom-trait"
+              value={customDraft}
+              onChange={(event) => {
+                setCustomDraft(event.target.value);
+                if (tagNote) setTagNote("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addCustomTrait();
+                }
+              }}
+              maxLength={60}
+              placeholder="Two words"
+              aria-invalid={tagNote ? true : undefined}
+              aria-describedby={tagNote ? "custom-trait-error" : undefined}
+              className="min-w-0 flex-1 rounded-full border border-line bg-white px-3 py-1.5 text-sm outline-none focus:border-accent"
+            />
+            <button
+              type="button"
+              onClick={addCustomTrait}
+              className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:border-accent"
+            >
+              Add
+            </button>
+          </div>
+          {tagNote ? (
+            <p id="custom-trait-error" role="alert" className="mt-2 text-sm text-[#d64545]">
+              {tagNote}
+            </p>
+          ) : null}
+          {customTags.length > 0 ? (
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {customTags.map((tag) => (
+                <li key={tag}>
+                  <button
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    aria-label={`Remove ${tag}`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#194d5c] bg-[#eef4f6] px-3 py-1.5 text-xs font-semibold text-ink"
+                  >
+                    {tag}
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         {tags.map((tag) => (
           <input key={tag} type="hidden" name="tags" value={tag} />
         ))}
-        {tagNote ? <p className="mt-2 text-sm text-[#d64545]">{tagNote}</p> : null}
       </fieldset>
 
       <label className="mt-8 block text-sm font-bold">

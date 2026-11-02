@@ -1,7 +1,7 @@
 import { divisionName } from "./divisions";
 import { formatScore, scoreTone } from "./format";
 import type { OrganisationReport } from "./queries";
-import { tagById } from "./tags";
+import { displayTrait } from "./tags";
 import { renderBarChart, type BarChartSpec } from "./chart-png";
 
 const SCORE_FILL = {
@@ -79,7 +79,7 @@ export function analysisChartSpecs(report: OrganisationReport): BarChartSpec[] {
         };
 
   const traitRows = report.tagCounts.slice(0, 10).flatMap((item) => {
-    const tag = tagById(item.id);
+    const tag = displayTrait(item.id);
     if (!tag) return [];
     return [{ item, tag }];
   });
@@ -93,7 +93,7 @@ export function analysisChartSpecs(report: OrganisationReport): BarChartSpec[] {
       label: tag.label,
       valueLabel: String(item.count),
       fraction: item.count / traitMax,
-      color: tag.tone === "positive" ? SCORE_FILL.good : SCORE_FILL.bad,
+      color: tag.tone === "positive" ? SCORE_FILL.good : tag.tone === "negative" ? SCORE_FILL.bad : "#5e828d",
     })),
     empty: "No traits yet.",
     axisLow: traitRows.length > 0 ? "0" : undefined,

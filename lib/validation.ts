@@ -1,6 +1,4 @@
-import { TAGS } from "./tags";
-
-const knownTags = new Set(TAGS.map((tag) => tag.id));
+import { parseTrait } from "./tags";
 
 export type ReviewDraft = {
   managerId: string;
@@ -42,11 +40,8 @@ export function validateReview(draft: ReviewDraft): ValidationResult {
     return { ok: false, error: "Choose a score from 1 to 5." };
   }
 
-  const tags = [...new Set(draft.tags)];
-  if (tags.length > 6) return { ok: false, error: "Choose up to 6 traits." };
-  if (tags.some((tag) => !knownTags.has(tag))) {
-    return { ok: false, error: "Use only the traits listed on the form." };
-  }
+  const tags = normalizeTags(draft.tags);
+  if (!tags.ok) return tags;
 
   const body = cleanBody(draft.body);
   if (body.length < 20) {
@@ -58,5 +53,20 @@ export function validateReview(draft: ReviewDraft): ValidationResult {
 
   const managerId = draft.managerId.trim();
   if (!managerId) return { ok: false, error: "Search for a manager in your division." };
-  return { ok: true, value: { managerId, rating: draft.rating, body, tags } };
+  return { ok: true, value: { managerId, rating: draft.rating, body, tags: tags.tags } };
+}
+
+function normalizeTags(raw: readonly string[]): { ok: true; tags: string[] } | { ok: false; error: string } {
+  const tags: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const parsed = parseTrait(item);
+    if (!parsed.ok) return parsed;
+    const key = parsed.id.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(parsed.id);
+  }
+  if (tags.length > 6) return { ok: false, error: "Choose up to 6 traits." };
+  return { ok: true, tags };
 }

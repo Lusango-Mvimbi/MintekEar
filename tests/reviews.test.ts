@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, test } from "node:test";
+import { analysisChartSpecs } from "../lib/analysis-chart-images";
 import { formatScore, groupReviewsByYear } from "../lib/format";
 import { TAGS } from "../lib/tags";
 import { validateReview, type ReviewDraft } from "../lib/validation";
@@ -379,6 +380,75 @@ test("hiding a review removes it from public counts and feeds; restore brings it
       (queries.organisationReport().divisions.find((d) => d.divisionId === "pyrometallurgy")?.tagCounts ?? []).some(
         (tag) => tag.id === "blames-team" && tag.count === 1,
       ),
+    );
+  } finally {
+    db.resetDbForTests();
+    fs.rmSync(file, { force: true });
+  }
+});
+
+test("a custom two-word trait is stored and counted with preset traits", async () => {
+  const file = tempDb();
+  const { db, queries } = await openDb(file, true);
+  try {
+    db.getDb()
+      .prepare(
+        "INSERT INTO managers (id, name, title, division, sample, created_at) VALUES (?, ?, ?, ?, 0, ?)",
+      )
+      .run("mgr-custom", "Custom Manager", "Team Lead", "pyrometallurgy", "2026-11-01");
+
+    const rejected = validateReview({
+      managerId: "mgr-custom",
+      rating: 4,
+      body: "She keeps promises and stays fair when the week gets busy.",
+      tags: ["takes all credit"],
+      honeypot: "",
+      policyAccepted: true,
+    });
+    assert.equal(rejected.ok, false);
+    if (!rejected.ok && !rejected.spam) assert.equal(rejected.error, "Use at most two words.");
+
+    const accepted = validateReview({
+      managerId: "mgr-custom",
+      rating: 4,
+      body: "She keeps promises and stays fair when the week gets busy.",
+      tags: ["  Keeps   promises  ", "Fair"],
+      honeypot: "",
+      policyAccepted: true,
+    });
+    assert.equal(accepted.ok, true);
+    if (!accepted.ok) return;
+    assert.deepEqual(accepted.value.tags, ["Keeps promises", "fair"]);
+
+    const saved = queries.insertReview(accepted.value, "pyrometallurgy");
+    assert.equal(saved.ok, true);
+
+    const manager = queries.getManager("mgr-custom", {
+      divisionId: "pyrometallurgy",
+      orgWide: false,
+      includeBodies: true,
+    });
+    assert.ok(manager);
+    assert.deepEqual(manager.reviews[0]?.tags, ["fair", "Keeps promises"]);
+    assert.deepEqual(manager.tagCounts, [
+      { id: "fair", count: 1 },
+      { id: "Keeps promises", count: 1 },
+    ]);
+
+    const report = queries.organisationReport();
+    assert.ok(report.tagCounts.some((tag) => tag.id === "Keeps promises" && tag.count === 1));
+    assert.ok(
+      report.divisions
+        .find((division) => division.divisionId === "pyrometallurgy")
+        ?.tagCounts.some((tag) => tag.id === "Keeps promises" && tag.count === 1),
+    );
+    const frequency = analysisChartSpecs(report).find((spec) => spec.title === "Trait frequency");
+    const customBar = frequency?.bars.find((bar) => bar.label === "Keeps promises");
+    assert.ok(customBar);
+    assert.equal(customBar.color, "#5e828d");
+    assert.equal(
+      queries.listReviewsForExport("pyrometallurgy").some((row) => row.traits.includes("Keeps promises")),
+      true,
     );
   } finally {
     db.resetDbForTests();

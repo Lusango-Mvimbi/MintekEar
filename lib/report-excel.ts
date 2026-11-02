@@ -5,7 +5,7 @@ import { company } from "./company";
 import { divisionName, parseDivisionParam } from "./divisions";
 import { reviewDate, roundScore } from "./format";
 import { listReviewsForExport, organisationReport, type OrganisationReport, type ReviewExportRow } from "./queries";
-import { tagById } from "./tags";
+import { displayTrait } from "./tags";
 
 export type ExcelExportAccess = {
   canDownloadReport: boolean;
@@ -52,7 +52,7 @@ function departmentLabel(scopeDivisionId: string | null): string {
 function traitList(tags: { id: string; count: number }[]): string {
   return tags
     .map((tag) => {
-      const label = tagById(tag.id)?.label;
+      const label = displayTrait(tag.id)?.label;
       return label ? `${label} (${tag.count})` : null;
     })
     .filter((label): label is string => Boolean(label))
@@ -149,7 +149,7 @@ async function buildAnalysisWorkbook(scopeDivisionId: string | null, exportedOn:
     summaryRows.push({ item: `Score ${bucket.rating}`, value: bucket.count });
   }
   for (const tag of report.tagCounts) {
-    const label = tagById(tag.id)?.label;
+    const label = displayTrait(tag.id)?.label;
     if (label) summaryRows.push({ item: `Trait: ${label}`, value: tag.count });
   }
   for (const row of summaryRows) summary.addRow(row);
