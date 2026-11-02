@@ -4,9 +4,10 @@ import { useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { saveHrAccess, saveHrRole } from "@/app/actions";
 import {
-  filterStaffByName,
   rosterStatusMessage,
   soleAdministratorId,
+  staffPageLabel,
+  visibleStaffPage,
   type AccessRosterPerson,
   type RosterNoun,
 } from "@/lib/access-directory";
@@ -187,6 +188,48 @@ function RosterStatus({
   );
 }
 
+function RosterPager({
+  page,
+  pageCount,
+  noun,
+  onPage,
+}: {
+  page: number;
+  pageCount: number;
+  noun: RosterNoun;
+  onPage: (page: number) => void;
+}) {
+  if (pageCount <= 1) return null;
+  const label = noun === "colleague" ? "colleagues" : "administrators";
+  return (
+    <nav
+      aria-label={`${label} pages`}
+      data-access-pager={noun}
+      className="flex items-center justify-between gap-3 border-t border-line px-4 py-3"
+    >
+      <button
+        type="button"
+        onClick={() => onPage(page - 1)}
+        disabled={page <= 1}
+        className="rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-paper disabled:opacity-40"
+      >
+        Previous
+      </button>
+      <p aria-live="polite" className="text-sm text-muted">
+        {staffPageLabel({ page, pageCount })}
+      </p>
+      <button
+        type="button"
+        onClick={() => onPage(page + 1)}
+        disabled={page >= pageCount}
+        className="rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-paper disabled:opacity-40"
+      >
+        Next
+      </button>
+    </nav>
+  );
+}
+
 function RosterTable({
   caption,
   tableName,
@@ -218,15 +261,24 @@ function RosterTable({
 
 export function AccessDirectory({ people }: { people: AccessRosterPerson[] }) {
   const [query, setQuery] = useState("");
+  const [colleaguePage, setColleaguePage] = useState(1);
+  const [administratorPage, setAdministratorPage] = useState(1);
   const searchRef = useRef<HTMLInputElement>(null);
   const colleagues = people.filter((person) => !person.isAdmin);
   const administrators = people.filter((person) => person.isAdmin);
-  const visibleColleagues = filterStaffByName(colleagues, query);
-  const visibleAdministrators = filterStaffByName(administrators, query);
+  const colleagueView = visibleStaffPage(colleagues, query, colleaguePage);
+  const administratorView = visibleStaffPage(administrators, query, administratorPage);
+  // Full roster, not the visible page: one administrator on this page is not the last one.
   const onlyAdminId = soleAdministratorId(people);
 
+  function updateQuery(next: string) {
+    setQuery(next);
+    setColleaguePage(1);
+    setAdministratorPage(1);
+  }
+
   function clearSearch() {
-    setQuery("");
+    updateQuery("");
     searchRef.current?.focus();
   }
 
@@ -242,7 +294,7 @@ export function AccessDirectory({ people }: { people: AccessRosterPerson[] }) {
             id="access-name-search"
             data-access-search=""
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => updateQuery(event.target.value)}
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
@@ -264,41 +316,49 @@ export function AccessDirectory({ people }: { people: AccessRosterPerson[] }) {
       <section id="make-administrator" className="mt-4">
         <h2 className="text-[22px] font-bold tracking-tight">Colleagues</h2>
         <div className="mt-4 overflow-hidden rounded-[22px] bg-white ring-1 ring-black/[0.04]">
-          <RosterStatus total={colleagues.length} shown={visibleColleagues.length} query={query} noun="colleague" />
-          {visibleColleagues.length > 0 ? (
-            <RosterTable
-              caption="Colleagues who are not administrators"
-              tableName="colleagues"
-              columns={
-                <>
-                  <th scope="col" className={`${head} sticky left-0 z-10 border-r border-line`}>
-                    Name
-                  </th>
-                  <th scope="col" className={head}>
-                    Division
-                  </th>
-                  <th scope="col" className={`${head} text-center`}>
-                    Read comments
-                  </th>
-                  <th scope="col" className={`${head} text-center`}>
-                    Analysis
-                  </th>
-                  <th scope="col" className={`${head} text-center`}>
-                    Download / print
-                  </th>
-                  <th scope="col" className={head}>
-                    Role
-                  </th>
-                  <th scope="col" className={head}>
-                    Save
-                  </th>
-                </>
-              }
-            >
-              {visibleColleagues.map((person) => (
-                <ColleagueRow key={person.staffId} person={person} />
-              ))}
-            </RosterTable>
+          <RosterStatus total={colleagues.length} shown={colleagueView.total} query={query} noun="colleague" />
+          {colleagueView.total > 0 ? (
+            <>
+              <RosterTable
+                caption="Colleagues who are not administrators"
+                tableName="colleagues"
+                columns={
+                  <>
+                    <th scope="col" className={`${head} sticky left-0 z-10 border-r border-line`}>
+                      Name
+                    </th>
+                    <th scope="col" className={head}>
+                      Division
+                    </th>
+                    <th scope="col" className={`${head} text-center`}>
+                      Read comments
+                    </th>
+                    <th scope="col" className={`${head} text-center`}>
+                      Analysis
+                    </th>
+                    <th scope="col" className={`${head} text-center`}>
+                      Download / print
+                    </th>
+                    <th scope="col" className={head}>
+                      Role
+                    </th>
+                    <th scope="col" className={head}>
+                      Save
+                    </th>
+                  </>
+                }
+              >
+                {colleagueView.items.map((person) => (
+                  <ColleagueRow key={person.staffId} person={person} />
+                ))}
+              </RosterTable>
+              <RosterPager
+                page={colleagueView.page}
+                pageCount={colleagueView.pageCount}
+                noun="colleague"
+                onPage={setColleaguePage}
+              />
+            </>
           ) : null}
         </div>
       </section>
@@ -308,35 +368,43 @@ export function AccessDirectory({ people }: { people: AccessRosterPerson[] }) {
         <div className="mt-4 overflow-hidden rounded-[22px] bg-white ring-1 ring-black/[0.04]">
           <RosterStatus
             total={administrators.length}
-            shown={visibleAdministrators.length}
+            shown={administratorView.total}
             query={query}
             noun="administrator"
           />
-          {visibleAdministrators.length > 0 ? (
-            <RosterTable
-              caption="Administrators"
-              tableName="administrators"
-              columns={
-                <>
-                  <th scope="col" className={`${head} sticky left-0 z-10 border-r border-line`}>
-                    Name
-                  </th>
-                  <th scope="col" className={head}>
-                    Division
-                  </th>
-                  <th scope="col" className={head}>
-                    Role
-                  </th>
-                  <th scope="col" className={head}>
-                    Action
-                  </th>
-                </>
-              }
-            >
-              {visibleAdministrators.map((person) => (
-                <AdministratorRow key={person.staffId} person={person} onlyAdmin={person.staffId === onlyAdminId} />
-              ))}
-            </RosterTable>
+          {administratorView.total > 0 ? (
+            <>
+              <RosterTable
+                caption="Administrators"
+                tableName="administrators"
+                columns={
+                  <>
+                    <th scope="col" className={`${head} sticky left-0 z-10 border-r border-line`}>
+                      Name
+                    </th>
+                    <th scope="col" className={head}>
+                      Division
+                    </th>
+                    <th scope="col" className={head}>
+                      Role
+                    </th>
+                    <th scope="col" className={head}>
+                      Action
+                    </th>
+                  </>
+                }
+              >
+                {administratorView.items.map((person) => (
+                  <AdministratorRow key={person.staffId} person={person} onlyAdmin={person.staffId === onlyAdminId} />
+                ))}
+              </RosterTable>
+              <RosterPager
+                page={administratorView.page}
+                pageCount={administratorView.pageCount}
+                noun="administrator"
+                onPage={setAdministratorPage}
+              />
+            </>
           ) : null}
         </div>
       </section>
