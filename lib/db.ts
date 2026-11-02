@@ -43,6 +43,10 @@ function migrate(db: DatabaseSync) {
       can_download_report INTEGER NOT NULL DEFAULT 0,
       is_admin INTEGER NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS analysis_graph_settings (
+      graph_id TEXT PRIMARY KEY,
+      enabled INTEGER NOT NULL DEFAULT 1
+    );
   `);
 
   const managerColumns = db.prepare("PRAGMA table_info(managers)").all() as { name: string }[];

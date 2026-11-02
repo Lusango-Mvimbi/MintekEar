@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getHrStaff, updateHrAccess } from "@/lib/access";
+import { updateAnalysisGraphVisibility } from "@/lib/analysis-graphs";
 import { getViewer, previewStaffCookieName } from "@/lib/directory";
 import { divisionById } from "@/lib/divisions";
 import { insertReview, setReviewHidden } from "@/lib/queries";
@@ -128,4 +129,20 @@ export async function saveHrAccess(formData: FormData) {
   revalidatePath("/report");
   revalidatePath("/");
   redirect("/admin?saved=1");
+}
+
+export async function saveAnalysisGraphs(formData: FormData) {
+  const viewer = await getViewer();
+  if (!viewer.isAdmin) redirect("/");
+  const enabled = formData
+    .getAll("graphs")
+    .filter((value): value is string => typeof value === "string");
+  try {
+    updateAnalysisGraphVisibility(enabled);
+  } catch {
+    redirect("/admin?error=1");
+  }
+  revalidatePath("/admin");
+  revalidatePath("/report");
+  redirect("/admin?graphs=1");
 }

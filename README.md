@@ -30,6 +30,8 @@ Until the employee database is connected, the header has a division preview so t
 
 Employees see scores and traits for managers in their own division. They do not see the written comments. An administrator chooses which people in Human Resources may read comments, open Analysis, and download / print the report. Other HR colleagues get the same access as other employees. The Access page is at `/admin`.
 
+On the same Access page, the administrator picks which Analysis graphs are shown (overview totals, division scores, score mix, needs attention, trait frequency, the division table, and managers by division). A sensible default set is on so demos still show charts. People with Analysis access only see the graphs the administrator left enabled. Charts stay anonymous — they never name a reviewer.
+
 ## Review policy and moderation
 
 Posting a review requires accepting the review policy (see `/policy`). The form checkbox must be on before the server accepts the post.

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
-import { saveHrAccess } from "@/app/actions";
+import { saveAnalysisGraphs, saveHrAccess } from "@/app/actions";
 import { listHrStaff } from "@/lib/access";
+import { ANALYSIS_GRAPHS, getAnalysisGraphVisibility } from "@/lib/analysis-graphs";
 import { getViewer } from "@/lib/directory";
 
 export const dynamic = "force-dynamic";
@@ -10,12 +11,13 @@ export const metadata = { title: "Access" };
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; graphs?: string; error?: string }>;
 }) {
   const viewer = await getViewer();
   if (!viewer.isAdmin) notFound();
   const params = await searchParams;
   const staff = listHrStaff();
+  const graphVisibility = getAnalysisGraphVisibility();
 
   return (
     <div>
@@ -28,6 +30,11 @@ export default async function AdminPage({
 
       {params.saved === "1" ? (
         <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm text-accent ring-1 ring-accent/20">Access saved.</p>
+      ) : null}
+      {params.graphs === "1" ? (
+        <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm text-accent ring-1 ring-accent/20">
+          Analysis graphs updated.
+        </p>
       ) : null}
       {params.error === "1" ? (
         <p role="alert" className="mt-4 rounded-2xl bg-[#fdecee] px-4 py-3 text-sm text-[#d64545]">
@@ -91,6 +98,49 @@ export default async function AdminPage({
           </form>
         ))}
       </div>
+
+      <section className="mt-10">
+        <h2 className="text-[22px] font-bold tracking-tight">Analysis graphs</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+          Pick which charts appear on the Analysis page for people who may open it. Turning a graph off hides it for
+          everyone; it does not change who may open Analysis. Charts stay anonymous — they never show a reviewer.
+        </p>
+
+        <form
+          action={saveAnalysisGraphs}
+          className="mt-4 rounded-[22px] bg-white p-5 ring-1 ring-black/[0.04] md:p-6"
+        >
+          <fieldset className="space-y-4">
+            <legend className="sr-only">Visible Analysis graphs</legend>
+            {ANALYSIS_GRAPHS.map((graph) => (
+              <label
+                key={graph.id}
+                className="flex items-start gap-3 rounded-2xl bg-paper/70 px-4 py-3 ring-1 ring-line/80"
+              >
+                <input
+                  type="checkbox"
+                  name="graphs"
+                  value={graph.id}
+                  defaultChecked={graphVisibility[graph.id]}
+                  className="mt-1 size-4 accent-[var(--brand)]"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-ink">{graph.label}</span>
+                  <span className="mt-0.5 block text-sm leading-6 text-muted">{graph.description}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <div className="mt-5 flex justify-end">
+            <button
+              type="submit"
+              className="rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+            >
+              Save graphs
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   );
 }

@@ -60,10 +60,16 @@ export type DivisionReport = {
   managers: ManagerSummary[];
 };
 
+export type RatingBucket = {
+  rating: 1 | 2 | 3 | 4 | 5;
+  count: number;
+};
+
 export type OrganisationReport = {
   reviewCount: number;
   average: number | null;
   tagCounts: { id: string; count: number }[];
+  ratingMix: RatingBucket[];
   attention: { divisionId: string; name: string; average: number; reviewCount: number }[];
   divisions: DivisionReport[];
 };
@@ -360,10 +366,26 @@ export function organisationReport(): OrganisationReport {
     }))
     .sort((a, b) => a.average - b.average || a.name.localeCompare(b.name));
 
+  const ratingRows = getDb()
+    .prepare(
+      `SELECT rating, COUNT(*) AS count
+       FROM reviews
+       WHERE hidden = 0
+       GROUP BY rating`,
+    )
+    .all();
+  const ratingCounts = new Map<number, number>();
+  for (const row of ratingRows) ratingCounts.set(num(row.rating), num(row.count));
+  const ratingMix: RatingBucket[] = ([1, 2, 3, 4, 5] as const).map((rating) => ({
+    rating,
+    count: ratingCounts.get(rating) ?? 0,
+  }));
+
   return {
     reviewCount,
     average: reviewCount ? weighted / reviewCount : null,
     tagCounts,
+    ratingMix,
     attention,
     divisions,
   };
