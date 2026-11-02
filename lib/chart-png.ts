@@ -1,7 +1,6 @@
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { inflateSync } from "node:zlib";
 
 /**
@@ -59,24 +58,14 @@ const WHITE = "#ffffff";
 const GOOD = "#0f8a4b";
 const GOOD_BG = "#e7f6ee";
 
-let regularFont = "";
-let boldFont = "";
-
-function fontFile(file: string): string {
-  const candidates = [
-    path.join(process.cwd(), "assets", "fonts", file),
-    path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "assets", "fonts", file),
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  throw new Error(`Chart font is missing: assets/fonts/${file}`);
-}
+const REGULAR_FONT = path.join(process.cwd(), "assets", "fonts", "Inter-Regular.ttf");
+const BOLD_FONT = path.join(process.cwd(), "assets", "fonts", "Inter-Bold.ttf");
 
 function fonts(): { regular: string; bold: string } {
-  if (!regularFont) regularFont = fontFile("Inter-Regular.ttf");
-  if (!boldFont) boldFont = fontFile("Inter-Bold.ttf");
-  return { regular: regularFont, bold: boldFont };
+  if (!fs.existsSync(REGULAR_FONT) || !fs.existsSync(BOLD_FONT)) {
+    throw new Error("Chart fonts are missing from assets/fonts.");
+  }
+  return { regular: REGULAR_FONT, bold: BOLD_FONT };
 }
 
 function escapeXml(value: string): string {
