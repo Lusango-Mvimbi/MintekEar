@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import { saveAnalysisGraphs } from "@/app/actions";
 import { AccessDirectory } from "@/components/AccessDirectory";
+import { ReviewCompletion } from "@/components/ReviewCompletion";
 import { listHrStaff } from "@/lib/access";
 import { ANALYSIS_GRAPHS, getAnalysisGraphVisibility } from "@/lib/analysis-graphs";
 import { getViewer } from "@/lib/directory";
 import { divisionName } from "@/lib/divisions";
+import { reviewCycleYear } from "@/lib/format";
 import { demoAccessDivision } from "@/lib/hr-seed";
+import { listReviewCompletion } from "@/lib/receipts";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +36,15 @@ export default async function AdminPage({
       canDownloadReport: person.canDownloadReport,
     };
   });
+  const cycleYear = reviewCycleYear();
+  const completion = listReviewCompletion(
+    staff.map((person) => ({
+      staffId: person.staffId,
+      displayName: person.displayName,
+      divisionId: demoAccessDivision(person.staffId),
+    })),
+    cycleYear,
+  );
 
   return (
     <div>
@@ -70,6 +82,8 @@ export default async function AdminPage({
       ) : null}
 
       <AccessDirectory people={people} />
+
+      <ReviewCompletion people={completion} cycleYear={cycleYear} />
 
       <section className="mt-10">
         <h2 className="text-[22px] font-bold tracking-tight">Analysis graphs</h2>

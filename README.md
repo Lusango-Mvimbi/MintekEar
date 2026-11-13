@@ -42,9 +42,13 @@ Posting a review requires accepting the review policy (see `/policy`). The form 
 
 An administrator (HR), or a colleague they have allowed to read comments, can hide a review that breaks the policy, or restore it later. A hidden review drops out of public scores, trait counts, feeds, and Analysis. Hiding does not reveal who wrote it — there is no author on the review row.
 
+Each person may post one review of a given manager per calendar year (Johannesburg). A separate receipt records that they have reviewed that manager. The receipt is not linked to the review text. On Access, administrators see who has or has not posted a required review this year.
+
+Manager scores show a sample-size label (thin sample, building, established). A division only appears under Needs attention when its average is under 2.5 and it has enough reviews for that to be a signal, not a single angry post.
+
 ## What a review stores
 
-A review row has the manager, the score, the words, the traits, the calendar day in Johannesburg, and whether it has been hidden. It does not store a clock time, a person, a staff number, an IP address, or a computer. Do not add request logging that keeps those details for the review route.
+A review row has the manager, the score, the words, the traits, the calendar day in Johannesburg, and whether it has been hidden. It does not store a clock time, a person, a staff number, an IP address, or a computer. Do not add request logging that keeps those details for the review route. Receipts live in a separate table and only store that a staff id has reviewed a manager in a cycle.
 
 ## Set up for another company
 

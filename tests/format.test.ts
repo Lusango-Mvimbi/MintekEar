@@ -4,6 +4,7 @@ import {
   formatScore,
   groupReviewsByYear,
   initials,
+  reviewCycleYear,
   reviewDate,
   reviewYear,
   timeAgo,
@@ -29,6 +30,7 @@ test("initials use the first and last name", () => {
 test("dates stay in whole days", () => {
   const now = Date.parse("2026-10-29T10:00:00.000Z");
   assert.equal(reviewDate(now), "2026-10-29");
+  assert.equal(reviewCycleYear(now), 2026);
   assert.equal(timeAgo("2026-10-29", now), "Today");
   assert.equal(timeAgo("2026-10-29T10:00:00.000Z", now), "Today");
   assert.equal(timeAgo("2026-10-28", now), "1d ago");

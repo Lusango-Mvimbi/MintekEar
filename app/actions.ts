@@ -8,7 +8,7 @@ import { updateAnalysisGraphVisibility } from "@/lib/analysis-graphs";
 import { getViewer, previewStaffCookieName } from "@/lib/directory";
 import { divisionById } from "@/lib/divisions";
 import { DEMO_ADMIN_ID, DEMO_COLLEAGUE_ID } from "@/lib/hr-seed";
-import { insertReview, setReviewHidden } from "@/lib/queries";
+import { insertReviewWithReceipt, setReviewHidden } from "@/lib/queries";
 import { validateReview, type ReviewDraft } from "@/lib/validation";
 
 export type SubmitState = { error?: string };
@@ -37,9 +37,13 @@ export async function submitReview(_prev: SubmitState, formData: FormData): Prom
     return { error: result.error };
   }
 
+  if (!viewer.staffId) {
+    return { error: "Reviews open once the employee directory is connected." };
+  }
+
   let saved: { managerId: string };
   try {
-    const inserted = insertReview(result.value, viewer.divisionId);
+    const inserted = insertReviewWithReceipt(result.value, viewer.divisionId, viewer.staffId);
     if (!inserted.ok) return { error: inserted.error };
     saved = { managerId: inserted.managerId };
   } catch {

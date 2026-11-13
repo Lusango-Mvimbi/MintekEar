@@ -3,7 +3,7 @@ export const POLICY_TITLE = "Review policy";
 export const POLICY_SHORT = [
   "Write only about behaviour you saw at work.",
   "Do not name other staff, and do not use hate, threats, or harassment.",
-  "An administrator (HR) may hide a review that breaks this policy, or allow a colleague to do so. They still will not be told who wrote it.",
+  "One review per manager each year. An administrator (HR) may hide a review that breaks this policy without being told who wrote it.",
 ] as const;
 
 export const POLICY_SECTIONS = [
@@ -29,7 +29,16 @@ export const POLICY_SECTIONS = [
     points: [
       "A review stores the manager, the score, the words, the traits, and the calendar day.",
       "It does not store your name, staff number, IP address, or which computer you used.",
+      "Separately, the system may record that you have reviewed a manager this year so you cannot post twice. That receipt is not linked to the review text.",
       "Colleagues see scores and traits. Written comments stay closed unless an administrator (HR) grants access.",
+    ],
+  },
+  {
+    title: "One review per manager",
+    points: [
+      "You may post one review of each manager in your division each calendar year.",
+      "That stops someone from knocking a score down with many posts after a single argument.",
+      "Administrators can see who has or has not posted a required review. They still cannot open a review and see who wrote it.",
     ],
   },
   {
