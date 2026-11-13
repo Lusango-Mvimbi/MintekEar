@@ -56,8 +56,8 @@ export function analysisChartSpecs(report: OrganisationReport): BarChartSpec[] {
       ? {
           title: "Needs attention",
           subtitle: scoped
-            ? `${scoped} is listed here when its average is under 2.5.`
-            : "Divisions with an average under 2.5.",
+            ? `${scoped} is listed here when its average is under 2.5 with enough reviews.`
+            : "Divisions under 2.5 with enough reviews to treat as a signal.",
           bars: [],
           empty: scoped
             ? `${scoped} is not under the attention line.`
@@ -67,8 +67,8 @@ export function analysisChartSpecs(report: OrganisationReport): BarChartSpec[] {
       : {
           title: "Needs attention",
           subtitle: scoped
-            ? `${scoped} averages under 2.5.`
-            : "Divisions with an average under 2.5.",
+            ? `${scoped} averages under 2.5 with enough reviews.`
+            : "Divisions under 2.5 with enough reviews to treat as a signal.",
           bars: report.attention.map((division) => ({
             label: division.name,
             valueLabel: `${formatScore(division.average)} · ${division.reviewCount} ${reviewsWord(division.reviewCount)}`,
@@ -131,9 +131,9 @@ export function overviewChartSpec(report: OrganisationReport): OverviewSpec {
         value: String(attentionCount),
         caption: scoped
           ? attentionCount > 0
-            ? "Average under 2.5"
-            : "At or above 2.5"
-          : "Divisions under 2.5",
+            ? "Under 2.5 with enough reviews"
+            : "Not under the attention line"
+          : "Divisions under 2.5 with enough reviews",
         color: attentionCount > 0 ? SCORE_FILL.bad : SCORE_FILL.good,
       },
     ],

@@ -39,7 +39,7 @@ export function ReviewCard({
         </span>
       </span>
       <span>
-        <ScoreBlock score={manager.average} />
+        <ScoreBlock score={manager.average} reviewCount={manager.reviewCount} />
         {manager.latest && manager.latest.tags.length > 0 ? (
           <span className="mt-3 block">
             <TagPills tags={manager.latest.tags} />
