@@ -1,3 +1,4 @@
+import { scoreConfidence } from "@/lib/confidence";
 import { formatScore, scoreTone, verdictLabel } from "@/lib/format";
 import { StarIcon } from "./icons";
 
@@ -7,7 +8,21 @@ const tones = {
   bad: { badge: "bg-[#fdecee] text-[#d64545]", label: "text-[#d64545]" },
 };
 
-export function ScoreBlock({ score }: { score: number | null }) {
+const confidenceTone = {
+  thin: "text-muted",
+  building: "text-ink",
+  established: "text-[#0f8a4b]",
+} as const;
+
+export function ScoreBlock({
+  score,
+  reviewCount,
+  showConfidence = true,
+}: {
+  score: number | null;
+  reviewCount?: number;
+  showConfidence?: boolean;
+}) {
   if (score === null) {
     return (
       <div className="flex flex-col items-start">
@@ -22,6 +37,9 @@ export function ScoreBlock({ score }: { score: number | null }) {
 
   const tone = scoreTone(score);
   const style = tones[tone];
+  const confidence =
+    showConfidence && typeof reviewCount === "number" ? scoreConfidence(reviewCount) : null;
+
   return (
     <div className="flex flex-col items-start">
       <div className={`inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-[15px] font-bold ${style.badge}`}>
@@ -29,6 +47,9 @@ export function ScoreBlock({ score }: { score: number | null }) {
         <span>{formatScore(score)}</span>
       </div>
       <p className={`mt-2 text-sm font-semibold ${style.label}`}>{verdictLabel(score)}</p>
+      {confidence ? (
+        <p className={`mt-1 text-xs font-medium ${confidenceTone[confidence.level]}`}>{confidence.label}</p>
+      ) : null}
     </div>
   );
 }

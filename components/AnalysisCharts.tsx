@@ -2,6 +2,7 @@ import { Children, type ReactNode } from "react";
 import Link from "next/link";
 import { TagPills } from "@/components/TagPills";
 import { analysisChartGridClass, showManagersByDivision, type AnalysisGraphVisibility } from "@/lib/analysis-graphs";
+import { ATTENTION_MIN_REVIEWS, scoreConfidence } from "@/lib/confidence";
 import { formatScore, scoreTone } from "@/lib/format";
 import type { OrganisationReport } from "@/lib/queries";
 import { displayTrait } from "@/lib/tags";
@@ -74,9 +75,9 @@ function OverviewCards({ report }: { report: OrganisationReport }) {
         <p className="mt-2 text-sm text-muted">
           {scoped
             ? report.attention.length > 0
-              ? "This division averages under 2.5"
-              : "This division is at or above 2.5"
-            : "Divisions averaging under 2.5"}
+              ? "Under 2.5 with enough reviews"
+              : "Not under the attention line"
+            : `Divisions under 2.5 with ≥${ATTENTION_MIN_REVIEWS} reviews`}
         </p>
       </div>
     </section>
@@ -168,7 +169,11 @@ function AttentionPanel({ report }: { report: OrganisationReport }) {
     return (
       <Panel
         title="Needs attention"
-        subtitle={scoped ? `${scoped.name} is listed here when its average is under 2.5.` : "Divisions with an average under 2.5."}
+        subtitle={
+          scoped
+            ? `${scoped.name} is listed here when its average is under 2.5 and it has at least ${ATTENTION_MIN_REVIEWS} reviews.`
+            : `Divisions with an average under 2.5 and at least ${ATTENTION_MIN_REVIEWS} reviews.`
+        }
       >
         <div className="flex items-center gap-3 rounded-2xl bg-[#e7f6ee] px-4 py-3 text-sm font-semibold text-[#0f8a4b]">
           <span className="inline-flex size-2.5 rounded-full bg-[#0f8a4b]" aria-hidden />
@@ -183,7 +188,11 @@ function AttentionPanel({ report }: { report: OrganisationReport }) {
   return (
     <Panel
       title="Needs attention"
-      subtitle={scoped ? `${scoped.name} averages under 2.5.` : "Divisions with an average under 2.5."}
+      subtitle={
+        scoped
+          ? `${scoped.name} averages under 2.5 with enough reviews to treat that as a signal.`
+          : `Divisions under 2.5 with at least ${ATTENTION_MIN_REVIEWS} reviews.`
+      }
     >
       <ul className="space-y-3">
         {report.attention.map((division) => {
@@ -361,12 +370,15 @@ function ManagersByDivision({ report }: { report: OrganisationReport }) {
                     </Link>
                     <p className="mt-0.5 text-sm text-muted">{manager.title}</p>
                   </div>
-                  <span
-                    className="text-sm font-semibold tabular-nums"
-                    style={{ color: tone ? SCORE_FILL[tone] : "var(--muted)" }}
-                  >
-                    {manager.average === null ? "No reviews yet" : formatScore(manager.average)} ·{" "}
-                    {manager.reviewCount} {manager.reviewCount === 1 ? "review" : "reviews"}
+                  <span className="text-right text-sm font-semibold tabular-nums">
+                    <span style={{ color: tone ? SCORE_FILL[tone] : "var(--muted)" }}>
+                      {manager.average === null ? "No reviews yet" : formatScore(manager.average)}
+                    </span>
+                    {manager.average === null ? null : (
+                      <span className="mt-0.5 block text-xs font-medium text-muted">
+                        {scoreConfidence(manager.reviewCount).label}
+                      </span>
+                    )}
                   </span>
                 </li>
               );

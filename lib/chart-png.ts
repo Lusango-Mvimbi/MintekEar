@@ -49,9 +49,10 @@ export type OverviewSpec = {
 const require = createRequire(import.meta.url);
 const { Resvg } = require("@resvg/resvg-js") as typeof import("@resvg/resvg-js");
 
-const WIDTH = 1200;
-const PAD = 40;
-const ZOOM = 2;
+/** Logical chart width. Rasterised at ZOOM for a sharp Excel / print picture. */
+const WIDTH = 1400;
+const PAD = 48;
+const ZOOM = 3;
 
 const INK = "#00131d";
 const MUTED = "#5e828d";

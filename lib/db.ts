@@ -48,6 +48,15 @@ function migrate(db: DatabaseSync) {
       graph_id TEXT PRIMARY KEY,
       enabled INTEGER NOT NULL DEFAULT 1
     );
+    CREATE TABLE IF NOT EXISTS review_receipts (
+      staff_id TEXT NOT NULL,
+      manager_id TEXT NOT NULL REFERENCES managers(id),
+      cycle_year INTEGER NOT NULL,
+      completed_on TEXT NOT NULL,
+      PRIMARY KEY (staff_id, manager_id, cycle_year)
+    );
+    CREATE INDEX IF NOT EXISTS review_receipts_manager_cycle
+      ON review_receipts (manager_id, cycle_year);
   `);
 
   const managerColumns = db.prepare("PRAGMA table_info(managers)").all() as { name: string }[];

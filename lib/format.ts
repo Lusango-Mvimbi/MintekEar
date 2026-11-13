@@ -42,6 +42,16 @@ export function reviewDate(now = Date.now()): string {
   }).format(now);
 }
 
+/** Review cycle year in Johannesburg. Receipts reset each January. */
+export function reviewCycleYear(now = Date.now()): number {
+  return Number(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone,
+      year: "numeric",
+    }).format(now),
+  );
+}
+
 function dayNumber(day: string): number {
   const [year, month, date] = day.split("-").map(Number);
   return Date.UTC(year, month - 1, date);

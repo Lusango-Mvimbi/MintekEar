@@ -16,9 +16,13 @@ const minBody = 20;
 export function ReviewForm({
   managers,
   initialManagerId,
+  alreadyReviewedCount = 0,
+  divisionManagerCount,
 }: {
   managers: ManagerOption[];
   initialManagerId?: string;
+  alreadyReviewedCount?: number;
+  divisionManagerCount?: number;
 }) {
   const knownManager = managers.some((manager) => manager.id === initialManagerId);
   const [state, formAction, pending] = useActionState(submitReview, initialState);
@@ -89,6 +93,15 @@ export function ReviewForm({
   return (
     <form action={formAction} className="rounded-[22px] bg-white p-6 shadow-[0_10px_30px_rgba(0,19,29,0.05)] ring-1 ring-black/[0.04] md:p-8">
       <h1 className="text-2xl font-bold tracking-tight">Write a review</h1>
+      <p className="mt-2 text-sm text-muted">One review per manager each year. The review itself stays anonymous.</p>
+
+      {alreadyReviewedCount > 0 ? (
+        <p className="mt-4 rounded-2xl bg-paper px-4 py-3 text-sm text-muted ring-1 ring-line">
+          You have already reviewed {alreadyReviewedCount}
+          {typeof divisionManagerCount === "number" ? ` of ${divisionManagerCount}` : ""} manager
+          {alreadyReviewedCount === 1 ? "" : "s"} in your division this year.
+        </p>
+      ) : null}
 
       {state.error ? (
         <p role="alert" className="mt-5 rounded-2xl bg-[#fdecee] px-4 py-3 text-sm font-medium text-[#d64545]">
@@ -123,7 +136,11 @@ export function ReviewForm({
         ) : null}
 
         {!selected && managers.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">No managers are listed in your division yet.</p>
+          <p className="mt-3 text-sm text-muted">
+            {alreadyReviewedCount > 0
+              ? "You have already reviewed every manager listed in your division this year."
+              : "No managers are listed in your division yet."}
+          </p>
         ) : null}
 
         {!selected && needle && matches.length === 0 ? (

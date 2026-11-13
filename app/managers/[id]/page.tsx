@@ -7,8 +7,10 @@ import { ScoreBlock } from "@/components/ScoreBlock";
 import { TagPills } from "@/components/TagPills";
 import { canBrowseOrganisation, getViewer } from "@/lib/directory";
 import { divisionName } from "@/lib/divisions";
+import { scoreConfidence } from "@/lib/confidence";
 import { groupReviewsByYear, timeAgo } from "@/lib/format";
 import { getManager } from "@/lib/queries";
+import { hasReviewReceipt } from "@/lib/receipts";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +67,9 @@ export default async function ManagerPage({
   const manager = getManager(id, accessFor(viewer));
   if (!manager) notFound();
   const showComments = viewer.canReadComments;
+  const alreadyReviewed =
+    Boolean(viewer.staffId) && hasReviewReceipt(viewer.staffId!, manager.id);
+  const confidence = scoreConfidence(manager.reviewCount);
 
   return (
     <div>
@@ -94,11 +99,12 @@ export default async function ManagerPage({
             <p className="mt-3">
               <CompanyMark />
             </p>
-            <p className="mt-4 text-sm text-muted">
-              {manager.reviewCount} anonymous {manager.reviewCount === 1 ? "review" : "reviews"}
-            </p>
+            <p className="mt-4 text-sm text-muted">{confidence.label}</p>
+            {manager.reviewCount > 0 ? (
+              <p className="mt-1 text-sm text-muted">{confidence.caption}</p>
+            ) : null}
           </div>
-          <ScoreBlock score={manager.average} />
+          <ScoreBlock score={manager.average} reviewCount={manager.reviewCount} showConfidence={false} />
         </div>
 
         {manager.tagCounts.length > 0 ? (
@@ -113,12 +119,18 @@ export default async function ManagerPage({
         <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <Distribution ratings={manager.reviews.filter((review) => !review.hidden).map((review) => review.rating)} />
           {manager.divisionId === viewer.divisionId ? (
-            <Link
-              href={`/review?manager=${manager.id}`}
-              className="inline-flex justify-center rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
-            >
-              Write a review
-            </Link>
+            alreadyReviewed ? (
+              <p className="rounded-full bg-paper px-4 py-2 text-sm font-semibold text-muted">
+                You already reviewed this manager this year
+              </p>
+            ) : (
+              <Link
+                href={`/review?manager=${manager.id}`}
+                className="inline-flex justify-center rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+              >
+                Write a review
+              </Link>
+            )
           ) : null}
         </div>
       </section>

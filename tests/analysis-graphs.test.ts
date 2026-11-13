@@ -171,22 +171,26 @@ describe("analysis graph settings", { concurrency: 1 }, () => {
         "INSERT INTO reviews (id, manager_id, rating, body, created_at, hidden) VALUES (?, ?, ?, ?, ?, ?)",
       );
       insertReview.run("rev-filter-visible", "mgr-filter-finance", 2, "Visible finance note about plans.", "2026-02-01", 0);
+      insertReview.run("rev-filter-finance-2", "mgr-filter-finance", 2, "Second finance note about planning load.", "2026-02-01", 0);
+      insertReview.run("rev-filter-finance-3", "mgr-filter-finance", 2, "Third finance note so the sample is enough.", "2026-02-01", 0);
       insertReview.run("rev-filter-hidden", "mgr-filter-finance", 5, "Hidden finance note about plans.", "2026-02-02", 1);
       insertReview.run("rev-filter-other", "mgr-filter-ict", 1, "ICT note that stays in ICT.", "2026-02-03", 0);
       const insertTag = database.prepare("INSERT INTO review_tags (review_id, tag) VALUES (?, ?)");
       insertTag.run("rev-filter-visible", "blames-team");
+      insertTag.run("rev-filter-finance-2", "blames-team");
+      insertTag.run("rev-filter-finance-3", "blames-team");
       insertTag.run("rev-filter-hidden", "supportive");
       insertTag.run("rev-filter-other", "micromanages");
 
       const finance = queries.organisationReport("finance");
       assert.equal(finance.scopeDivisionId, "finance");
-      assert.equal(finance.reviewCount, 1);
+      assert.equal(finance.reviewCount, 3);
       assert.equal(finance.average, 2);
       assert.deepEqual(
         finance.ratingMix.map((bucket) => bucket.count),
-        [0, 1, 0, 0, 0],
+        [0, 3, 0, 0, 0],
       );
-      assert.deepEqual(finance.tagCounts, [{ id: "blames-team", count: 1 }]);
+      assert.deepEqual(finance.tagCounts, [{ id: "blames-team", count: 3 }]);
       assert.equal(finance.divisions.length, 1);
       assert.equal(finance.divisions[0]?.managerCount, 1);
       assert.equal(finance.divisions[0]?.managers[0]?.id, "mgr-filter-finance");
@@ -202,12 +206,18 @@ describe("analysis graph settings", { concurrency: 1 }, () => {
       assert.deepEqual(ict.tagCounts, [{ id: "micromanages", count: 1 }]);
       assert.equal(ict.divisions[0]?.managers[0]?.id, "mgr-filter-ict");
       assert.equal(ict.tagCounts.some((tag) => tag.id === "blames-team"), false);
+      // One review is a thin sample — not enough to treat as Needs attention.
+      assert.deepEqual(ict.attention.map((division) => division.divisionId), []);
 
       const all = queries.organisationReport();
       assert.equal(all.scopeDivisionId, null);
-      assert.equal(all.reviewCount, 2);
+      assert.equal(all.reviewCount, 4);
       assert.equal(all.ratingMix.find((bucket) => bucket.rating === 5)?.count, 0);
       assert.equal(all.divisions.filter((division) => division.reviewCount > 0).length, 2);
+      assert.deepEqual(
+        all.attention.map((division) => division.divisionId),
+        ["finance"],
+      );
 
       const financeCharts = analysisChartSpecs(finance);
       assert.deepEqual(
@@ -238,7 +248,7 @@ describe("analysis graph settings", { concurrency: 1 }, () => {
         allCharts[0]?.bars.map((bar) => bar.label).sort(),
         ["Finance", "ICT"],
       );
-      assert.equal(allCharts[1]?.bars.length, 2);
+      assert.equal(allCharts[1]?.bars.length, 1);
     } finally {
       db.resetDbForTests();
       fs.rmSync(file, { force: true });

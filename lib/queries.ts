@@ -1,6 +1,8 @@
+import { enoughReviewsForAttention } from "./confidence";
 import { getDb } from "./db";
 import { DIVISIONS, divisionById, divisionName } from "./divisions";
-import { reviewDate } from "./format";
+import { reviewCycleYear, reviewDate } from "./format";
+import { hasReviewReceipt } from "./receipts";
 import { displayTrait, sortTagIds } from "./tags";
 import type { ValidReview } from "./validation";
 
@@ -380,7 +382,9 @@ export function organisationReport(divisionId?: string | null): OrganisationRepo
   const attention = divisions
     .filter(
       (division) =>
-        division.reviewCount > 0 && division.average !== null && scoreNeedsAttention(division.average),
+        enoughReviewsForAttention(division.reviewCount) &&
+        division.average !== null &&
+        scoreNeedsAttention(division.average),
     )
     .map((division) => ({
       divisionId: division.divisionId,
@@ -500,6 +504,66 @@ export function insertReview(review: ValidReview, divisionId: string): InsertRes
     db.exec("COMMIT");
   } catch (error) {
     db.exec("ROLLBACK");
+    throw error;
+  }
+
+  return { ok: true, managerId: review.managerId };
+}
+
+/**
+ * Post a review and mark that this staff member has reviewed the manager this cycle.
+ * The staff id goes only onto the receipt. The review row stays anonymous.
+ */
+export function insertReviewWithReceipt(
+  review: ValidReview,
+  divisionId: string,
+  staffId: string,
+): InsertResult {
+  if (!staffId) {
+    return { ok: false, error: "Reviews open once the employee directory is connected." };
+  }
+
+  const db = getDb();
+  const today = reviewDate();
+  const cycleYear = reviewCycleYear();
+  const existing = db
+    .prepare("SELECT id FROM managers WHERE id = ? AND division = ?")
+    .get(review.managerId, divisionId);
+  if (!existing) return { ok: false, error: "Search for a manager in your division." };
+
+  if (hasReviewReceipt(staffId, review.managerId, cycleYear)) {
+    return { ok: false, error: "You have already reviewed this manager this year." };
+  }
+
+  const duplicate = db
+    .prepare("SELECT id FROM reviews WHERE manager_id = ? AND body = ? AND hidden = 0")
+    .get(review.managerId, review.body);
+  if (duplicate) return { ok: false, error: "That same review is already on this manager." };
+
+  const reviewId = crypto.randomUUID();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare(
+      "INSERT INTO reviews (id, manager_id, rating, body, created_at, hidden) VALUES (?, ?, ?, ?, ?, 0)",
+    ).run(reviewId, review.managerId, review.rating, review.body, today);
+    const insertTag = db.prepare("INSERT INTO review_tags (review_id, tag) VALUES (?, ?)");
+    for (const tag of review.tags) insertTag.run(reviewId, tag);
+    try {
+      db.prepare(
+        `INSERT INTO review_receipts (staff_id, manager_id, cycle_year, completed_on)
+         VALUES (?, ?, ?, ?)`,
+      ).run(staffId, review.managerId, cycleYear, today);
+    } catch {
+      db.exec("ROLLBACK");
+      return { ok: false, error: "You have already reviewed this manager this year." };
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    try {
+      db.exec("ROLLBACK");
+    } catch {
+      /* already rolled back */
+    }
     throw error;
   }
 

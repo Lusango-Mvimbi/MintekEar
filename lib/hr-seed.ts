@@ -44,6 +44,8 @@ const DEMO_ROWS: readonly DemoAccessRow[] = [
 /** Division label for demo people on the Access list. Privileges stay separate from division. */
 export function demoAccessDivision(staffId: string): string | null {
   if (staffId === DEMO_ADMIN_ID || staffId === DEMO_HR_COLLEAGUE_ID) return HR_DIVISION_ID;
+  // Default colleague persona reviews managers in Pyrometallurgy during demos.
+  if (staffId === DEMO_COLLEAGUE_ID) return "pyrometallurgy";
   return null;
 }
 

@@ -44,21 +44,22 @@ export async function getViewer(): Promise<Viewer> {
   const divisionId = division?.id ?? "pyrometallurgy";
   const hrDivision = divisionId === HR_DIVISION_ID;
 
+  const requestedStaff = jar.get(previewStaffCookie)?.value ?? DEMO_COLLEAGUE_ID;
+  const staff = getHrStaff(requestedStaff) ?? getHrStaff(DEMO_COLLEAGUE_ID);
+  const staffId = staff?.staffId ?? DEMO_COLLEAGUE_ID;
+  const grants = grantsForStaff(staffId);
+
   if (!hrDivision) {
     return {
       divisionId,
       hrDivision: false,
       source: "preview",
-      staffId: null,
-      staffLabel: null,
+      // Preview staff id for receipts / access only. Never stored on a review.
+      staffId,
+      staffLabel: staff?.displayName ?? staffId,
       ...grantsForStaff(null),
     };
   }
-
-  const requestedStaff = jar.get(previewStaffCookie)?.value ?? DEMO_COLLEAGUE_ID;
-  const staff = getHrStaff(requestedStaff) ?? getHrStaff(DEMO_COLLEAGUE_ID);
-  const staffId = staff?.staffId ?? DEMO_COLLEAGUE_ID;
-  const grants = grantsForStaff(staffId);
 
   return {
     divisionId,
